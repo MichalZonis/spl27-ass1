@@ -35,6 +35,8 @@ private:
     std::size_t blocksNum;
     std::size_t blockSize;
     std::vector<MemoryBlock*> memory;
+    std::vector<std::size_t> reservedBlocks;
+    std::size_t activeBlocks() const;
 };
 
 #endif

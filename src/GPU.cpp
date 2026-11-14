@@ -1,7 +1,25 @@
 #include "GPU.h"
+#include "MemoryBlock.h"
 
 GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
     : blocksNum(blocksNum), blockSize(blockSize), memory(blocksNum, nullptr) {}
+
+std::size_t GPU::availableSlots() const {
+return blocksNum - activeBlocks() - reservedBlocks.size(); 
+//TODO: reservedBlocks use is still unclear - 
+// does it keep the blocks reserved for a request, or is it just a count of how many blocks are reserved?
+}
+
+std::size_t GPU::activeBlocks() const { 
+    //TODO: this might be needed to be updated per reserve/unreserve and such
+    std::size_t count = 0;
+    for(const auto& block : memory) {
+        if(block != nullptr && block->getRefCount() > 0) {
+            count++;
+        }
+    }
+    return count;
+}
 
 GPU::~GPU()
 {
@@ -9,3 +27,5 @@ GPU::~GPU()
         delete block;
     }
 }
+
+
