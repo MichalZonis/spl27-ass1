@@ -1,7 +1,11 @@
 #include "GPU.h"
 
- GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
+GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
     : blocksNum(blocksNum), blockSize(blockSize), memory(blocksNum, nullptr) {}
 
-
-    
+GPU::~GPU()
+{
+    for(auto block : memory) {
+        delete block;
+    }
+}
