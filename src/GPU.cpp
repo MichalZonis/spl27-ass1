@@ -25,6 +25,14 @@ std::size_t GPU::getBlocksForMemory(std::size_t memory) const {
     return memory / blockSize + (memory % blockSize != 0);
 }
 
+void GPU::reserve(std::size_t n, const Request& request) {
+    // TODO: Implementation for reserving blocks
+}
+
+void GPU::unreserve(std::size_t n, const Request& request) {
+    // TODO: Implementation for unreserving blocks
+}
+
 GPU::~GPU()
 {
     for(auto block : memory) {
