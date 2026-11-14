@@ -37,6 +37,7 @@ private:
     std::vector<MemoryBlock*> memory;
     std::vector<std::size_t> reservedBlocks;
     std::size_t activeBlocks() const;
+    std::vector<PrefixMatch*> cachedPrefixes;
 };
 
 #endif
