@@ -56,3 +56,8 @@ Config Server::readConfig(string configPath) const{
 
     return Config{blockSize, gpuConfigs, modelConfigs, requestConfigs, policy};
 }
+
+void Server::serve(){
+   while(step());
+std::cout << "All requests have been processed." << std::endl;
+}
