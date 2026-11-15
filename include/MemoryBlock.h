@@ -25,6 +25,7 @@ public:
     void acquire();
     IdleAction release();
     size_t getRefCount() const;
+    virtual ~MemoryBlock();
 };
 
 class KVBlock : public MemoryBlock
@@ -41,6 +42,7 @@ public:
     EmbeddingWorkspace(size_t size);
     virtual IdleAction onLastRelease() const;
     virtual MemoryBlock *clone() const;
+    ~EmbeddingWorkspace();
 };
 
 #endif
