@@ -3,6 +3,7 @@
 #include "json.hpp"
 
 #include "Server.h"
+#include <iostream>
 
 using namespace std;
 using json = nlohmann::json;
@@ -58,6 +59,68 @@ Config Server::readConfig(string configPath) const{
 }
 
 void Server::serve(){
-   while(step());
-std::cout << "All requests have been processed." << std::endl;
+    while(step());
+    std::cout << "All requests have been processed." << std::endl;
 }
+
+Server::Server(string configPath)
+: gpus(), models(), nonSubmittedRequests(), waitingRequests(), activeRequests(), policy(nullptr){
+    Config config = readConfig(configPath);
+    gpus.reserve(config.gpus.size());
+    for(const auto& gpuConfig: config.gpus){
+        gpus.emplace_back(gpuConfig.memoryBytes, config.blockSize);
+    }
+    models.reserve(config.models.size());
+    for(const auto& modelConfig: config.models){
+        models.emplace_back(modelConfig.id, modelConfig.embeddingSize);
+    }
+    //return here after complting policy
+    if (config.policy == "arrivalOrder") {
+        policy = new ArrivalOrderSchedulingPolicy();
+    } else if (config.policy == "shortestJobFirst") {
+        policy = new ShortestJobFirstSchedulingPolicy();
+    } else if (config.policy == "longestPrefixFirst") {
+        policy = new LongestPrefixFirstSchedulingPolicy();
+    } else {
+        throw invalid_argument("invalid scheduling policy");
+    }
+
+    nonSubmittedRequests.reserve(config.requests.size());
+    for(const auto& requestConfig: config.requests){
+        const Model* model = nullptr;
+        for(const auto& m: models){
+            if(m.getId() == requestConfig.modelId){
+                model = &m;
+                break; 
+            }
+        }
+        if(requestConfig.type == RequestType::Generative){
+            nonSubmittedRequests.push_back(new GenerativeRequest(requestConfig.id, model, requestConfig.admissionCycle, requestConfig.prompt, requestConfig.scriptedOutput, requestConfig.maxOutputTokens));
+        } else if(requestConfig.type == RequestType::TextEmbedder){
+            nonSubmittedRequests.push_back(new EmbeddingRequest(requestConfig.id, model, requestConfig.admissionCycle, requestConfig.prompt));
+        }
+    }
+
+}
+
+Server::~Server() {
+        clear();
+}
+void Server::clear() {
+    for (auto request : nonSubmittedRequests) {
+        delete request;
+    }
+    for (auto request : waitingRequests) {
+        delete request;
+    }
+    for (auto request : activeRequests) {
+        delete request;
+    }
+    delete policy;
+}
+Server::Server(const Server& other)
+: gpus(other.gpus), models(other.models), nonSubmittedRequests(), waitingRequests(), activeRequests(), policy(other.policy->clone()) {
+    for (const auto& request : other.nonSubmittedRequests) {
+        nonSubmittedRequests.push_back(request->clone(*request->getModel()));
+    }
+    for (const auto& request : other.waitingRequests) 
