@@ -2,15 +2,19 @@
 #include "MemoryBlock.h"
 
 GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
-    : blocksNum(blocksNum), blockSize(blockSize), memory(blocksNum, nullptr), cachedPrefixes(blocksNum, nullptr), cachedModelIds(blocksNum, "") {}
+    : blocksNum(blocksNum),
+      blockSize(blockSize),
+      memory(blocksNum, nullptr),
+      cachedPrefixes(blocksNum, nullptr),
+      cachedModelIds(blocksNum, "") {}
 
 GPU::GPU(const GPU &other)
+    : blocksNum(other.blocksNum),
+      blockSize(other.blockSize),
+      memory(other.blocksNum, nullptr),
+      cachedPrefixes(other.blocksNum, nullptr),
+      cachedModelIds(other.blocksNum, "")
 {
-    blocksNum = other.blocksNum;
-    blockSize = other.blockSize;
-    memory.resize(blocksNum, nullptr);
-    cachedPrefixes.resize(blocksNum, nullptr);
-    cachedModelIds.resize(blocksNum, "");
 
     for (std::size_t i = 0; i < blocksNum; ++i)
     {
@@ -33,6 +37,7 @@ std::size_t GPU::availableSlots() const
     //  does it keep the blocks reserved for a request, or is it just a count of how many blocks are reserved?
 }
 
+// TODO: delete this. define var that keeps track of active blocks and update it on acquire/release
 std::size_t GPU::activeBlocks() const
 {
     // TODO: this might be needed to be updated per reserve/unreserve and such
