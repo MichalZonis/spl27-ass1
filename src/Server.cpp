@@ -123,4 +123,17 @@ Server::Server(const Server& other)
     for (const auto& request : other.nonSubmittedRequests) {
         nonSubmittedRequests.push_back(request->clone(*request->getModel()));
     }
-    for (const auto& request : other.waitingRequests) 
+    for (const auto& request : other.waitingRequests) {
+        waitingRequests.push_back(request->clone(*request->getModel()));
+    }
+    for (const auto& request : other.activeRequests) {
+        activeRequests.push_back(request->clone(*request->getModel()));
+    }
+    for (const auto& model : other.models) {
+        models.push_back(model);
+    }
+    for (const auto& gpu : other.gpus) {
+        gpus.push_back(gpu);
+    }
+    policy = other.policy->clone();
+}

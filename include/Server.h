@@ -13,7 +13,7 @@ struct GPUConfig{
 struct ModelConfig{
     std::string id;
     std::size_t embeddingSize;
-};
+};     
 
 enum class RequestType { Generative, TextEmbedder };
 
