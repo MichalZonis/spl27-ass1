@@ -70,6 +70,16 @@ void GPU::release(std::size_t slot)
     }
 }
 
+int GPU::readFromBlock(std::size_t blockId, std::size_t offset) const
+{
+    return memory[blockId]->readFromBlock(offset);
+}
+
+void GPU::writeToBlock(std::size_t blockId, std::size_t offset, int value)
+{
+    memory[blockId]->writeToBlock(offset);
+}
+
 GPU::~GPU()
 {
     for (auto block : memory)
