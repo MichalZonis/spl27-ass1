@@ -3,6 +3,8 @@
 #include "json.hpp"
 
 #include "Server.h"
+#include "SchedulingPolicy.h"
+#include "Request.h"
 #include <iostream>
 
 using namespace std;
@@ -68,15 +70,62 @@ Config Server::readConfig(string configPath) const
 
 void Server::serve()
 {
-    while (step()) ;
+    int cycle = 0;
+    while (step())
+    {
+        currentCycle ++;
+    }
 
     std::cout << "Active requests: " << activeRequests.size() 
     <<"Waiting requests: " << waitingRequests.size()
-    << "Non-submitted requests: " << nonSubmittedRequests.size() << std::endl;
+    << "Non-submitted requests: " << nonSubmittedRequests.size() 
+    << "Cycles: " << currentCycle
+    << std::endl;
+}
+bool Server::step()
+{
+    if (nonSubmittedRequests.empty() && waitingRequests.empty() && activeRequests.empty())
+    {
+        return false;
+    }
+
+    for(auto request= nonSubmittedRequests.begin(); request != nonSubmittedRequests.end();)
+        {
+            if((*request)->getAdmissionCycle() == currentCycle)
+            {
+                waitingRequests.push_back(*request);
+                request = nonSubmittedRequests.erase(request);
+            }
+            else
+            {
+                ++request;
+            }
+        }
+    std::vector<int> order = policy->choose( waitingRequests ,  gpus); 
+       for(auto requestIndex : order)
+       {
+            Request* request = waitingRequests[requestIndex];
+            std::size_t neededMemory = request->getNeededMemory(gpus[0]);
+            bool allocated = false;
+            for(auto& gpu : gpus)
+            {
+                if(gpu.availableSlots() >= neededMemory)
+                {
+                    request->reserveMemory(gpu);
+                    activeRequests.push_back(request);
+                    allocated = true;
+                    waitingRequests.erase(waitingRequests.begin() + requestIndex);
+                    break;
+                }
+            }
+            
+       }
+
+        return true;
 }
 
 Server::Server(string configPath)
-    : gpus(), models(), nonSubmittedRequests(), waitingRequests(), activeRequests(), policy(nullptr)
+    : gpus(), models(), nonSubmittedRequests(), waitingRequests(), activeRequests(), policy(nullptr), currentCycle(0)
 {
     Config config = readConfig(configPath);
     gpus.reserve(config.gpus.size());
