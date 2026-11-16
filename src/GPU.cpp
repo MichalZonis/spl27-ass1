@@ -2,7 +2,29 @@
 #include "MemoryBlock.h"
 
 GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
-    : blocksNum(blocksNum), blockSize(blockSize), memory(blocksNum, nullptr), cachedPrefixes(blocksNum, nullptr) {}
+    : blocksNum(blocksNum), blockSize(blockSize), memory(blocksNum, nullptr), cachedPrefixes(blocksNum, nullptr), cachedModelIds(blocksNum, "") {}
+
+GPU::GPU(const GPU &other)
+{
+    blocksNum = other.blocksNum;
+    blockSize = other.blockSize;
+    memory.resize(blocksNum, nullptr);
+    cachedPrefixes.resize(blocksNum, nullptr);
+    cachedModelIds.resize(blocksNum, "");
+
+    for (std::size_t i = 0; i < blocksNum; ++i)
+    {
+        if (other.memory[i] != nullptr)
+        {
+            memory[i] = other.memory[i]->clone();
+        }
+        if (other.cachedPrefixes[i] != nullptr)
+        {
+            cachedPrefixes[i] = new PrefixMatch(*other.cachedPrefixes[i]);
+        }
+        cachedModelIds[i] = other.cachedModelIds[i];
+    }
+}
 
 std::size_t GPU::availableSlots() const
 {
@@ -77,7 +99,7 @@ int GPU::readFromBlock(std::size_t blockId, std::size_t offset) const
 
 void GPU::writeToBlock(std::size_t blockId, std::size_t offset, int value)
 {
-    memory[blockId]->writeToBlock(offset);
+    memory[blockId]->writeToBlock(offset, value);
 }
 
 GPU::~GPU()
