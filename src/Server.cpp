@@ -68,9 +68,11 @@ Config Server::readConfig(string configPath) const
 
 void Server::serve()
 {
-    while (step())
-        ;
-    std::cout << "All requests have been processed." << std::endl;
+    while (step()) ;
+
+    std::cout << "Active requests: " << activeRequests.size() 
+    <<"Waiting requests: " << waitingRequests.size()
+    << "Non-submitted requests: " << nonSubmittedRequests.size() << std::endl;
 }
 
 Server::Server(string configPath)
