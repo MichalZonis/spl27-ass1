@@ -4,6 +4,10 @@ MemoryBlock::MemoryBlock(std::size_t size) : size(size), refCount(0) {
     data = new int[size];
 }
 
+MemoryBlock::~MemoryBlock(){
+    delete[] data;
+}
+
 std::size_t MemoryBlock::getRefCount() const
 {
     return refCount;
