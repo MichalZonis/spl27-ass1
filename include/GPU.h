@@ -37,7 +37,9 @@ private:
     std::size_t blockSize;
     std::vector<MemoryBlock*> memory;
     std::vector<std::size_t> reservedBlocks;
-    std::size_t activeBlocks() const;
+    std::size_t activeBlocksCounter;
+    std::size_t reservedBlocksCounter;
+    std::size_t activeBlocks() const; //TODO: delete this. define var that keeps track of active blocks and update it on acquire/release
     std::vector<PrefixMatch*> cachedPrefixes;
     std::vector<std::string> cachedModelIds;
 };
