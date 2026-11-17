@@ -104,23 +104,38 @@ bool Server::step()
     std::vector<int> order = policy->choose( waitingRequests ,  gpus); 
        for(auto requestIndex : order)
        {
+        auto theGPU = gpus.begin();
+        auto theprefix = theGPU->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
+        waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex
             Request* request = waitingRequests[requestIndex];
-            std::size_t neededMemory = request->getNeededMemory(gpus[0]);
-            bool allocated = false;
-            for(auto& gpu : gpus)
+            for(auto &gpu : gpus)
             {
-                if(gpu.availableSlots() >= neededMemory)
-                {
-                    request->reserveMemory(gpu);
-                    activeRequests.push_back(request);
-                    allocated = true;
-                    waitingRequests.erase(waitingRequests.begin() + requestIndex);
-                    break;
-                }
+               auto prefix = gpu.findLongestCachedPrefix(request->getModel().getId(),
+                request->getModel().getEmbeddingSize(), request->getCacheableTokens());
+                if(prefix.matchedTokens > theprefix.matchedTokens)  
+                    {
+                        theGPU = &gpu;
+                        theprefix = prefix;
+                    }
+                else if(prefix.matchedTokens==theprefix.matchedTokens)
+                    {
+                        if(gpu.availableSlots() > theGPU->availableSlots())
+                        {
+                            theGPU = &gpu;
+                            theprefix = prefix;
+                        }
+                        else if(gpu.availableSlots() == theGPU->availableSlots())
+                        {
+                            if(gpus.index_of(gpu) < gpus.index_of(*theGPU))
+                            {
+                                theGPU = &gpu;
+                                theprefix = prefix;
+                            }
+                        }
+                    }
             }
-            
-       }
-
+            if
+        }
         return true;
 }
 
