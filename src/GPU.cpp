@@ -36,24 +36,7 @@ GPU::GPU(const GPU &other)
 
 std::size_t GPU::availableSlots() const
 {
-    return blocksNum - activeBlocks() - reservedBlocks.size();
-    // TODO: reservedBlocks use is still unclear -
-    //  does it keep the blocks reserved for a request, or is it just a count of how many blocks are reserved?
-}
-
-// TODO: delete this. define var that keeps track of active blocks and update it on acquire/release
-std::size_t GPU::activeBlocks() const
-{
-    // TODO: this might be needed to be updated per reserve/unreserve and such
-    std::size_t count = 0;
-    for (const auto &block : memory)
-    {
-        if (block != nullptr && block->getRefCount() > 0)
-        {
-            count++;
-        }
-    }
-    return count;
+    return blocksNum - activeBlocksCounter - reservedBlocksCounter;
 }
 
 std::size_t GPU::getBlocksForMemory(std::size_t memory) const
@@ -76,6 +59,7 @@ std::size_t GPU::allocateBlock(const Request &request)
     // TODO: check for "It does so only if the request has reserved enough memory for this allocation. "
 
     std::size_t slot = findAvailableSlot();
+    activeBlocksCounter++; // Should be incremented here to reflect the allocation?
     request.allocateOneBlock(*this, slot);
     return slot;
 }
@@ -127,9 +111,10 @@ void GPU::release(std::size_t slot)
     (*memory[slot]).release();
     if ((*memory[slot]).getRefCount() == 0)
     {
+        activeBlocksCounter--;
         IdleAction action = (*memory[slot]).onLastRelease();
         if (action == IdleAction::Destroy)
-        { // TODO: do Destroy action blocks have a cached prefix? if so it needs to be removed from cachedPrefixes as well
+        { 
             delete memory[slot];
             memory[slot] = nullptr;
         }
