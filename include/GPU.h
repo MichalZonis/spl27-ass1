@@ -33,7 +33,7 @@ public:
     PrefixMatch findLongestCachedPrefix(const std::string& modelId, std::size_t embeddingSize,
                                         const std::vector<std::string>& promptTokens) const;
     ~GPU();
-    std::size_t findAvailableSlot() const;
+    std::size_t findAvailableSlot() ;
 
 private:
     std::size_t blocksNum;
@@ -47,6 +47,7 @@ private:
     std::vector<PrefixMatch*> cachedPrefixes;
     std::vector<std::string> cachedModelIds;
     std::unordered_map<std::string, int> requestsReservations;
+    std::size_t evictionCounter;
 };
 
 #endif

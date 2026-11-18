@@ -7,14 +7,17 @@ GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
       blockSize(blockSize),
       memory(blocksNum, nullptr),
       cachedPrefixes(blocksNum, nullptr),
-      cachedModelIds(blocksNum, "") {}
+      cachedModelIds(blocksNum, ""),
+      evictionCounter(0)
+{}
 
 GPU::GPU(const GPU &other)
     : blocksNum(other.blocksNum),
       blockSize(other.blockSize),
       memory(other.blocksNum, nullptr),
       cachedPrefixes(other.blocksNum, nullptr),
-      cachedModelIds(other.blocksNum, "")
+      cachedModelIds(other.blocksNum, ""),
+      evictionCounter(other.evictionCounter)
 {
 
     for (std::size_t i = 0; i < blocksNum; ++i)
@@ -87,12 +90,12 @@ void GPU::addMemoryBlock(const EmbeddingRequest &request, std::size_t slot) {
 
 }
 
-std::size_t GPU::findAvailableSlot() const
+std::size_t GPU::findAvailableSlot() 
 {
 
     for (std::size_t i = 0; i < blocksNum; ++i)
     {
-        if (memory[i] == nullptr) // TOdO: check the definion of empty cell
+        if (memory[i] == nullptr) 
         {
             return i;
         }
@@ -101,6 +104,7 @@ std::size_t GPU::findAvailableSlot() const
     {
         if (memory[i] != nullptr && memory[i]->getRefCount() == 0)
         {
+            evictionCounter++;
             return i;
         }
     }
