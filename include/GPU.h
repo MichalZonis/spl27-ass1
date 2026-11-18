@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <vector>
 #include "Request.h"
+#include <unordered_map>
 
 struct PrefixMatch {
     std::size_t matchedTokens;
@@ -32,16 +33,20 @@ public:
     PrefixMatch findLongestCachedPrefix(const std::string& modelId, std::size_t embeddingSize,
                                         const std::vector<std::string>& promptTokens) const;
     ~GPU();
+    std::size_t findAvailableSlot() const;
+
 private:
     std::size_t blocksNum;
     std::size_t blockSize;
     std::vector<MemoryBlock*> memory;
+    //--------
     std::vector<std::size_t> reservedBlocks;
     std::size_t activeBlocksCounter;
     std::size_t reservedBlocksCounter;
     std::size_t activeBlocks() const; //TODO: delete this. define var that keeps track of active blocks and update it on acquire/release
     std::vector<PrefixMatch*> cachedPrefixes;
     std::vector<std::string> cachedModelIds;
+    std::unordered_map<std::string, int> requestsReservations;
 };
 
 #endif

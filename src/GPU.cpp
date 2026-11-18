@@ -1,5 +1,6 @@
 #include "GPU.h"
 #include "MemoryBlock.h"
+#include <stdexcept>
 
 GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
     : blocksNum(blocksNum),
@@ -65,6 +66,45 @@ void GPU::reserve(std::size_t n, const Request &request)
 void GPU::unreserve(std::size_t n, const Request &request)
 {
     // TODO: Implementation for unreserving blocks
+}
+
+std::size_t GPU::allocateBlock(const Request &request)
+{
+    // TODO: check for "It does so only if the request has reserved enough memory for this allocation. "
+
+    std::size_t slot = findAvailableSlot();
+    request.allocateOneBlock(*this, slot);
+    return slot;
+}
+
+void GPU::addMemoryBlock(const GenerativeRequest &request, std::size_t slot)
+{
+    memory[slot] = new KVBlock(blockSize);
+}
+
+void GPU::addMemoryBlock(const EmbeddingRequest &request, std::size_t slot) {
+    memory[slot] = new EmbeddingWorkspace(blockSize);
+
+}
+
+std::size_t GPU::findAvailableSlot() const
+{
+
+    for (std::size_t i = 0; i < blocksNum; ++i)
+    {
+        if (memory[i] == nullptr) // TOdO: check the definion of empty cell
+        {
+            return i;
+        }
+    }
+    for (std::size_t i = 0; i < blocksNum; ++i)
+    {
+        if (memory[i] != nullptr && memory[i]->getRefCount() == 0)
+        {
+            return i;
+        }
+    }
+    throw std::runtime_error("No available slots in GPU memory."); // TODO: remove
 }
 
 void assignPrefixToBlock(std::size_t block,
