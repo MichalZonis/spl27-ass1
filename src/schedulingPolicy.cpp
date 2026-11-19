@@ -4,7 +4,7 @@
 std::vector<int> ArrivalOrderPolicy::choose(const std::vector<const Request *> &eligible,
                                             const std::vector<GPU> &gpus) const
 {
-    std::vector<int> order;
+    std::vector<int> order(eligible.size);
     auto copy = eligible.clone();
     int index = 0;
     for (int j = 0; j < eligible.size(); ++j)
@@ -26,7 +26,7 @@ std::vector<int> ArrivalOrderPolicy::choose(const std::vector<const Request *> &
 std::vector<int> ShortestJobPolicy::choose(const std::vector<const Request *> &eligible,
                                            const std : vector<GPU> &gpus) const
 {
-    std::vector<int> order;
+    std::vector<int> order(eligible.size);
     auto copy = eligible.clone();
     int index = 0;
     for (int j = 0; j < eligible.size(); ++j)
@@ -49,7 +49,7 @@ std::vector<int> ShortestJobPolicy::choose(const std::vector<const Request *> &e
 std::vector<int> LongestPrefixPolicy::choose(const std::vector<const Request *> &eligible,
                                              const std::vector<GPU> &gpus) const
 {
-    std::vector<int> order;
+    std::vector<int> order(eligible.size);
     auto copy = eligible.clone();
     int index = 0;
     for (int j = 0; j < eligible.size(); ++j)

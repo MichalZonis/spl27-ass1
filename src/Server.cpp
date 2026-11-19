@@ -101,38 +101,45 @@ bool Server::step()
                 ++request;
             }
         }
-    std::vector<int> order = policy->choose( waitingRequests ,  gpus); 
+
+    std::vector<const Request*> eligible(waitingRequests.begin(), waitingRequests.end());
+    std::vector<int> order = policy->choose(eligible, gpus);
        for(auto requestIndex : order)
        {
         auto theGPU = gpus.begin();
+        int theGPUIndex = 0;
+        int index = 0;
         auto theprefix = theGPU->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
-        waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex
-            Request* request = waitingRequests[requestIndex];
-            for(auto &gpu : gpus)
+        waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
+            for(auto gpu = gpus.begin(); gpu != gpus.end(); ++gpu)
             {
-               auto prefix = gpu.findLongestCachedPrefix(request->getModel().getId(),
-                request->getModel().getEmbeddingSize(), request->getCacheableTokens());
+               auto prefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
+                waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
                 if(prefix.matchedTokens > theprefix.matchedTokens)  
                     {
-                        theGPU = &gpu;
+                        theGPU = gpu;
                         theprefix = prefix;
+                        theGPUIndex = index;
                     }
                 else if(prefix.matchedTokens==theprefix.matchedTokens)
                     {
-                        if(gpu.availableSlots() > theGPU->availableSlots())
+                        if(gpu->availableSlots() > theGPU->availableSlots())
                         {
-                            theGPU = &gpu;
+                            theGPU = gpu;
                             theprefix = prefix;
+                            theGPUIndex = index;
                         }
-                        else if(gpu.availableSlots() == theGPU->availableSlots())
+                        else if(gpu->availableSlots() == theGPU->availableSlots())
                         {
-                            if(gpus.index_of(gpu) < gpus.index_of(*theGPU))
+                            if(index < theGPUIndex)
                             {
-                                theGPU = &gpu;
+                                theGPU = gpu;
                                 theprefix = prefix;
+                                theGPUIndex = index;
                             }
                         }
                     }
+                index++;
             }
             if
         }
@@ -156,15 +163,15 @@ Server::Server(string configPath)
     // return here after complting policy
     if (config.policy == "arrivalOrder")
     {
-        policy = new ArrivalOrderSchedulingPolicy();
+        policy = new ArrivalOrderPolicy();
     }
     else if (config.policy == "shortestJobFirst")
     {
-        policy = new ShortestJobFirstSchedulingPolicy();
+        policy = new ShortestJobPolicy();
     }
     else if (config.policy == "longestPrefixFirst")
     {
-        policy = new LongestPrefixFirstSchedulingPolicy();
+        policy = new LongestPrefixPolicy();
     }
     else
     {
@@ -177,7 +184,7 @@ Server::Server(string configPath)
         const Model *model = nullptr;
         for (const auto &m : models)
         {
-            if (m.getId() == requestConfig.modelId)
+            if (m->getId() == requestConfig.modelId)
             {
                 model = &m;
                 break;
