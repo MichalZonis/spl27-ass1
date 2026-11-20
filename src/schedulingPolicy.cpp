@@ -1,72 +1,131 @@
-#include <vector>
 #include "SchedulingPolicy.h"
 #include "Request.h"
 #include "GPU.h"
-
+#include <cstddef>
+#include <vector>
 
 std::vector<int> ArrivalOrderPolicy::choose(const std::vector<const Request*>& eligible,
                                             const std::vector<GPU>& gpus) const
 {
-    std::vector<int> order(eligible.size());
-    auto copy = eligible;
-    int index = 0;
-    for (int j = 0; j < eligible.size(); ++j)
-    {
-        for (int i = 0; i < eligible.size(); ++i)
-        {
-            if (copy[i] != nullptr)
-                if (eligible[i]->getAdmissionCycle() < eligible[index]->getAdmissionCycle())
-                {
-                    index = i;
-                }
+    (void)gpus;
+    std::vector<int> order;
+    order.reserve(eligible.size());
+    std::vector<bool> chosen(eligible.size(), false);
+
+    for (std::size_t step = 0; step < eligible.size(); ++step) {
+        int bestIdx = -1;
+        for (std::size_t i = 0; i < eligible.size(); ++i) {
+            if (chosen[i] || eligible[i] == nullptr) {
+                continue;
+            }
+            if (bestIdx == -1) {
+                bestIdx = static_cast<int>(i);
+                continue;
+            }
+            const Request* cur = eligible[i];
+            const Request* best = eligible[bestIdx];
+            if (cur->getAdmissionCycle() < best->getAdmissionCycle() ||
+                (cur->getAdmissionCycle() == best->getAdmissionCycle() && cur->getId() < best->getId())) {
+                bestIdx = static_cast<int>(i);
+            }
         }
-        order.push_back(index);
-        copy[index] = nullptr; // Mark as chosen
+        if (bestIdx != -1) {
+            chosen[bestIdx] = true;
+            order.push_back(bestIdx);
+        }
     }
     return order;
 }
 
-std::vector<int> ShortestJobPolicy::choose(const std::vector<const Request *> &eligible,
+SchedulingPolicy* ArrivalOrderPolicy::clone() const
+{
+    return new ArrivalOrderPolicy(*this);
+}
+
+std::vector<int> ShortestJobPolicy::choose(const std::vector<const Request*>& eligible,
                                            const std::vector<GPU>& gpus) const
 {
-    std::vector<int> order(eligible.size());
-    auto copy = eligible;
-    int index = 0;
-    for (int j = 0; j < eligible.size(); ++j)
-    {
-        for (int i = 0; i < eligible.size(); ++i)
-        {
-            if (copy[i] != nullptr)
-                if (eligible[i]->getMaxOutputTokens() < eligible[index]->getMaxOutputTokens())
-                {
-                    index = i;
-                }
+    std::vector<int> order;
+    order.reserve(eligible.size());
+    if (gpus.empty()) {
+        return order;
+    }
+
+    std::vector<bool> chosen(eligible.size(), false);
+    const GPU& refGpu = gpus[0];
+
+    for (std::size_t step = 0; step < eligible.size(); ++step) {
+        int bestIdx = -1;
+        for (std::size_t i = 0; i < eligible.size(); ++i) {
+            if (chosen[i] || eligible[i] == nullptr) {
+                continue;
+            }
+            if (bestIdx == -1) {
+                bestIdx = static_cast<int>(i);
+                continue;
+            }
+            const Request* cur = eligible[i];
+            const Request* best = eligible[bestIdx];
+            std::size_t curBlocks = refGpu.getBlocksForMemory(cur->getMaxNeededMemory());
+            std::size_t bestBlocks = refGpu.getBlocksForMemory(best->getMaxNeededMemory());
+            if (curBlocks < bestBlocks ||
+                (curBlocks == bestBlocks && cur->getId() < best->getId())) {
+                bestIdx = static_cast<int>(i);
+            }
         }
-        order.push_back(index);
-        copy[index] = nullptr;
+        if (bestIdx != -1) {
+            chosen[bestIdx] = true;
+            order.push_back(bestIdx);
+        }
     }
     return order;
 }
 
-//work in progress
-std::vector<int> LongestPrefixPolicy::choose(const std::vector<const Request *> &eligible,
-                                             const std::vector<GPU> &gpus) const
+SchedulingPolicy* ShortestJobPolicy::clone() const
 {
-    std::vector<int> order(eligible.size());
-    auto copy = eligible;
-    int index = 0;
-    for (int j = 0; j < eligible.size(); ++j)
-    {
-        for (int i = 0; i < eligible.size(); ++i)
-        {
-            if (copy[i] != nullptr)
-              //  if (eligible[i]->getCacheableTokens().size() > eligible[index]->getCacheableTokens().size())
-                {
-                    index = i;
-                }
+    return new ShortestJobPolicy(*this);
+}
+
+std::vector<int> LongestPrefixPolicy::choose(const std::vector<const Request*>& eligible,
+                                            const std::vector<GPU>& gpus) const
+{
+    std::vector<int> order;
+    order.reserve(eligible.size());
+    if (gpus.empty()) {
+        return order;
+    }
+
+    std::vector<bool> chosen(eligible.size(), false);
+    const GPU& refGpu = gpus[0];
+
+    for (std::size_t step = 0; step < eligible.size(); ++step) {
+        int bestIdx = -1;
+        for (std::size_t i = 0; i < eligible.size(); ++i) {
+            if (chosen[i] || eligible[i] == nullptr) {
+                continue;
+            }
+            if (bestIdx == -1) {
+                bestIdx = static_cast<int>(i);
+                continue;
+            }
+            const Request* cur = eligible[i];
+            const Request* best = eligible[bestIdx];
+            std::size_t curBlocks = refGpu.getBlocksForMemory(cur->getMaxNeededMemory());
+            std::size_t bestBlocks = refGpu.getBlocksForMemory(best->getMaxNeededMemory());
+            if (curBlocks > bestBlocks ||
+                (curBlocks == bestBlocks && cur->getId() > best->getId())) {
+                bestIdx = static_cast<int>(i);
+            }
         }
-        order.push_back(index);
-        copy[index] = nullptr;
+        if (bestIdx != -1) {
+            chosen[bestIdx] = true;
+            order.push_back(bestIdx);
+        }
     }
     return order;
+}
+
+SchedulingPolicy* LongestPrefixPolicy::clone() const
+{
+    return new LongestPrefixPolicy(*this);
 }

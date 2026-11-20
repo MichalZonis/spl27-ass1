@@ -51,6 +51,12 @@ private:
     int currentCycle;
 public:
     Server(std::string configPath);
+    ~Server();
+    Server(const Server& other);
+    Server& operator=(const Server& other);
+    Server(Server&& other) noexcept;
+    Server& operator=(Server&& other) noexcept;
+    void clear();
     bool step();
     void serve();
 };
