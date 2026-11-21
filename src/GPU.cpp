@@ -63,18 +63,27 @@ void GPU::unreserve(std::size_t n, const Request &request)
 
 std::size_t GPU::allocateBlock(const Request &request)
 {
-    // TODO: check for "It does so only if the request has reserved enough memory for this allocation. "
-    if (requestsReservations[request.getId()] <= 0)
+    if (requestsReservations.find(request.getId()) == requestsReservations.end() ||
+        requestsReservations[request.getId()] <= 0)
     {
         throw std::runtime_error("Request has not reserved enough memory for this allocation.");
     }
     else
     {
-        requestsReservations[request.getId()]--;
-        reservedBlocksCounter--;
+        decreaseReservations(request);
         std::size_t slot = findAvailableSlot();
         request.allocateOneBlock(*this, slot);
         return slot;
+    }
+}
+
+void GPU::decreaseReservations(const Request &request)
+{
+    requestsReservations[request.getId()]--;
+    reservedBlocksCounter--;
+    if (requestsReservations[request.getId()] == 0)
+    {
+        requestsReservations.erase(request.getId());
     }
 }
 
@@ -106,13 +115,12 @@ std::size_t GPU::findAvailableSlot()
             return i;
         }
     }
-    throw std::runtime_error("No available slots in GPU memory."); // TODO: remove
+    throw std::runtime_error("No available slots in GPU memory.");
 }
 
 void assignPrefixToBlock(std::size_t block,
                          const std::vector<std::string> &prefixTokens, const std::string &modelId)
 {
-    // TODO: Implementation for assigning prefix to block
 }
 
 PrefixMatch GPU::findLongestCachedPrefix(const std::string &modelId,
@@ -134,12 +142,7 @@ void GPU::release(std::size_t slot)
     {
         activeBlocksCounter--;
         IdleAction action = (*memory[slot]).onLastRelease();
-        if (action == IdleAction::Destroy)
-        {
-            delete memory[slot];
-            memory[slot] = nullptr;
-        }
-        else if (action == IdleAction::KeepCached && cachedPrefixes[slot] == nullptr)
+        if ((action == IdleAction::Destroy) || (action == IdleAction::KeepCached && cachedPrefixes[slot] == nullptr))
         {
             delete memory[slot];
             memory[slot] = nullptr;
@@ -163,8 +166,9 @@ void GPU::acquire(std::size_t slot)
     activeBlocksCounter++;
 }
 
-GPU& GPU::operator=(const GPU& other){
-    //TODO: Implement assignment operator if needed
+GPU &GPU::operator=(const GPU &other)
+{
+    // TODO: Implement assignment operator if needed
 }
 
 GPU::~GPU()

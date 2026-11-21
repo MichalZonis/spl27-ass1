@@ -45,8 +45,9 @@ private:
     std::size_t reservedBlocksCounter;
     std::vector<PrefixMatch*> cachedPrefixes;
     std::vector<std::string> cachedModelIds;
-    std::unordered_map<int, std::size_t> requestsReservations;
+    std::unordered_map<int, std::size_t> requestsReservations; //{request.getId(), reservedBlocksNum}
     std::size_t evictionCounter;
+    void decreaseReservations(const Request &request);
 };
 
 #endif
