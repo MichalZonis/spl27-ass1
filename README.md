@@ -114,3 +114,122 @@ flowchart TD
     Cleanup -->|"unreserve() & release()<br/>(triggers onLastRelease)"| GPU
 ```
 ````[cite: 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+### 4. Function Call Flow (Who Calls Whom & Where)
+
+```mermaid
+flowchart TD
+    subgraph Main ["Main.cpp"]
+        M_main["main()"]
+    end
+
+    subgraph Server ["Server"]
+        S_ctor["Server(configPath)"]
+        S_read["readConfig()"]
+        S_serve["serve()"]
+        S_step["step()"]
+    end
+
+    subgraph Policy ["SchedulingPolicy"]
+        P_choose["choose(eligible, gpus)"]
+    end
+
+    subgraph Request ["Request (Generative / Embedding)"]
+        R_ctor["Request()"]
+        R_max["getMaxNeededMemory()"]
+        R_needed["getNeededMemory(gpu)"]
+        R_cache["getCacheableTokens()"]
+        R_res["reserveMemory(gpu)"]
+        R_act["act(gpu)"]
+        R_fin["finished() & getOutput()"]
+        R_dealloc["deallocateMemory(gpu)"]
+        R_unres["getNeedToUnreserve()"]
+        R_alloc1["allocateOneBlock(gpu, slot)"]
+    end
+
+    subgraph Model ["Model"]
+        Mod_tok["tokenizer()"]
+        Mod_emb["generateTokenEmbedding()"]
+    end
+
+    subgraph GPU ["GPU"]
+        G_avail["availableSlots()"]
+        G_blocks["getBlocksForMemory()"]
+        G_find["findLongestCachedPrefix()"]
+        G_copy["copyMemoryFromOtherGPU()"]
+        G_res["reserve() / unreserve()"]
+        G_alloc["allocateBlock(request)"]
+        G_add["addMemoryBlock(req, slot)"]
+        G_assign["assignPrefixToBlock()"]
+        G_acq["acquire(slot)"]
+        G_rel["release(slot)"]
+        G_rw["readFromBlock() / writeToBlock()"]
+    end
+
+    subgraph MemoryBlock ["MemoryBlock (KVBlock / EmbeddingWorkspace)"]
+        MB_acq["acquire()"]
+        MB_rel["release() & onLastRelease()"]
+        MB_rw["readFromBlock() / writeToBlock()"]
+        MB_clone["clone()"]
+    end
+
+    %% Init
+    M_main --> S_ctor
+    S_ctor --> S_read
+    S_ctor --> R_ctor
+    R_ctor --> Mod_tok
+    M_main --> S_serve
+    S_serve --> S_step
+
+    %% Step: Arrival & Scheduling
+    S_step -->|"Rejection check"| R_max
+    S_step -->|"Rejection check"| G_blocks
+    S_step --> P_choose
+    P_choose -->|"ShortestJob"| R_max
+    P_choose -->|"ShortestJob"| G_blocks
+    P_choose -->|"LongestPrefix"| G_find
+
+    %% Step: Admission
+    S_step -->|"Find best GPU"| G_find
+    S_step -->|"Check fit"| G_avail
+    S_step -->|"Check fit"| R_needed
+    S_step -->|"Cross-GPU prefix"| G_copy
+    G_copy --> MB_clone
+    S_step -->|"Admit"| R_res
+
+    %% Request::reserveMemory
+    R_res -->|"Gen: find prefix"| G_find
+    R_res -->|"Gen: prefix hits / Emb: workspace"| G_acq
+    R_res -->|"Reserve needed"| G_res
+    R_res -->|"Emb only: alloc workspace"| G_alloc
+
+    %% Step: Execution
+    S_step --> R_act
+    R_act -->|"Gen: when new block needed"| G_alloc
+    R_act -->|"Gen: after alloc"| G_acq
+    R_act -->|"Compute token vector"| Mod_emb
+    Mod_emb -->|"Write vector"| G_rw
+    R_act -->|"Emb: update running sum"| G_rw
+    R_act -->|"Gen: when block is full"| G_assign
+
+    %% Double Dispatch
+    G_alloc -->|"Double Dispatch (1)"| R_alloc1
+    R_alloc1 -->|"Double Dispatch (2)"| G_add
+
+    %% Step: Completion
+    S_step --> R_fin
+    S_step -->|"If finished"| R_dealloc
+    R_dealloc --> R_unres
+    R_dealloc --> G_res
+    R_dealloc --> G_rel
+
+    %% GPU -> MemoryBlock
+    G_acq --> MB_acq
+    G_rel --> MB_rel
+    G_rw --> MB_rw
+```
+````[cite: 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+**מקרא קצר לקריאה מהירה:**
+* **Double Dispatch:** `GPU::allocateBlock` קוראת ל-`Request::allocateOneBlock`, שקוראת בחזרה ל-`GPU::addMemoryBlock` (כך ה-GPU יודע אם ליצור `KVBlock` או `EmbeddingWorkspace` בלי לבדוק טיפוסים).
+* **כתיבת נתונים:** `Request::act` לא כותבת ישירות ל-`MemoryBlock` — היא קוראת ל-`Model::generateTokenEmbedding`, שכותבת דרך `GPU::writeToBlock`, שמעבירה ל-`MemoryBlock::writeToBlock`[cite: 9, 10, 12].
