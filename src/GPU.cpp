@@ -29,7 +29,7 @@ GPU::GPU(const GPU &other)
         }
         if (other.cachedPrefixes[i] != nullptr)
         {
-            cachedPrefixes[i] = new PrefixMatch(*other.cachedPrefixes[i]);
+            cachedPrefixes[i] = other.cachedPrefixes[i]; // TODO: Consider deep copying the cached prefixes if necessary
         }
         cachedModelIds[i] = other.cachedModelIds[i];
     }
@@ -118,9 +118,25 @@ std::size_t GPU::findAvailableSlot()
     throw std::runtime_error("No available slots in GPU memory.");
 }
 
-void assignPrefixToBlock(std::size_t block,
-                         const std::vector<std::string> &prefixTokens, const std::string &modelId)
+void GPU::assignPrefixToBlock(std::size_t block,
+                              const std::vector<std::string> &prefixTokens, const std::string &modelId)
 {
+    size_t exisitingBlock = -1;
+    for (auto i = 0; i < blocksNum; i++)
+    {
+        if (cachedModelIds[i] == modelId && cachedPrefixes[i] != nullptr && *cachedPrefixes[i] == prefixTokens)
+        {
+            exisitingBlock = i;
+            break;
+        }
+    }
+
+    if (exisitingBlock != -1)
+    {
+        cachedModelIds[block] = modelId;
+        cachedPrefixes[block] = new std::vector<std::string>(prefixTokens); // TODO: how is this vector created? if it an rvalue, no need to new it, just assign it.
+                                                                            // if it is an lvalue, then we need to copy it.
+    }
 }
 
 PrefixMatch GPU::findLongestCachedPrefix(const std::string &modelId,
