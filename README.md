@@ -113,7 +113,6 @@ flowchart TD
     Model -->|"writeToBlock()"| GPU
     Cleanup -->|"unreserve() & release()<br/>(triggers onLastRelease)"| GPU
 ```
-````[cite: 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 ### 4. Function Call Flow (Who Calls Whom & Where)
 
@@ -229,7 +228,3 @@ flowchart TD
     G_rw --> MB_rw
 ```
 ````[cite: 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-
-**מקרא קצר לקריאה מהירה:**
-* **Double Dispatch:** `GPU::allocateBlock` קוראת ל-`Request::allocateOneBlock`, שקוראת בחזרה ל-`GPU::addMemoryBlock` (כך ה-GPU יודע אם ליצור `KVBlock` או `EmbeddingWorkspace` בלי לבדוק טיפוסים).
-* **כתיבת נתונים:** `Request::act` לא כותבת ישירות ל-`MemoryBlock` — היא קוראת ל-`Model::generateTokenEmbedding`, שכותבת דרך `GPU::writeToBlock`, שמעבירה ל-`MemoryBlock::writeToBlock`[cite: 9, 10, 12].
