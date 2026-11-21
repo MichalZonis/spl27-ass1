@@ -66,3 +66,51 @@ flowchart TD
         R6 -- Yes --> R8["Block becomes Idle<br/>Available for reuse or eviction"]
     end
 ```
+
+### 3. General Program Workflow & Components
+
+```mermaid
+flowchart TD
+    subgraph Init ["1. Initialization (Main.cpp & Config)"]
+        Config[("config.json<br/>GPUs, Models, Policy, Requests")] --> Main["Main.cpp<br/>Server server(argv[1])"]
+        Main --> ReadCfg["Server::readConfig()<br/>(via json.hpp)"]
+        ReadCfg --> ServerInit["Server initializes & owns:<br/>• vector&lt;GPU&gt;<br/>• vector&lt;Model&gt;<br/>• SchedulingPolicy*<br/>• Pending Request*s"]
+    end
+
+    ServerInit --> ServeLoop["Server::serve()<br/>Loop while step() returns true"]
+
+    subgraph Cycle ["2. Simulation Cycle (Server::step)"]
+        Arrival["Arrival Phase<br/>Move due requests to waitingRequests<br/>(Reject & delete if too large for all GPUs)"]
+        
+        Arrival --> PolicyComp["SchedulingPolicy::choose()<br/>(ArrivalOrder / ShortestJob / LongestPrefix)<br/>Reads GPUs & waitingRequests (const)"]
+        
+        PolicyComp --> Admit["Admission Phase<br/>1. Pick best GPU (cached prefix, needed blocks, index)<br/>2. Copy longer prefix from other GPU if found<br/>3. request.reserveMemory(gpu) & move to activeRequests"]
+        
+        Admit --> Exec["Execution Phase<br/>For each active request: request.act(gpu)"]
+        
+        Exec --> Cleanup["Completion Phase<br/>If request.finished():<br/>Print 'finished', call deallocateMemory(gpu), remove"]
+    end
+
+    ServeLoop --> Arrival
+    Cleanup -->|"Requests remain"| ServeLoop
+    Cleanup -->|"All requests done"| Summary(["Server::serve() prints:<br/>summary: cycles, cache_hits, evictions"])
+
+    subgraph ReqModel ["3. Requests & Models"]
+        Req["Request (Abstract)<br/>• GenerativeRequest (prefill + decode)<br/>• EmbeddingRequest (token mean)<br/>Holds slot indices & non-owning const Model&"]
+        Model["Model (Stateless)<br/>• tokenizer()<br/>• generateTokenEmbedding()"]
+        Req -->|"Requests token vector"| Model
+    end
+
+    subgraph GPUMem ["4. GPU & Memory Management"]
+        GPU["GPU (Owns all blocks)<br/>• Fixed slots: vector&lt;MemoryBlock*&gt;<br/>• Reservations, Prefix Map, Stats<br/>• allocateBlock(), acquire(), release()"]
+        Blocks["MemoryBlock (Abstract)<br/>• KVBlock (shared, KeepCached)<br/>• EmbeddingWorkspace (private, Destroy)"]
+        GPU -->|"Allocates, owns, evicts & deletes"| Blocks
+    end
+
+    Admit <-->|"findLongestCachedPrefix()<br/>copyMemoryFromOtherGPU()<br/>reserve() & acquire()"| GPU
+    Exec <-->|"act()"| Req
+    Req -->|"Double Dispatch:<br/>allocateOneBlock() -> addMemoryBlock()"| GPU
+    Model -->|"writeToBlock()"| GPU
+    Cleanup -->|"unreserve() & release()<br/>(triggers onLastRelease)"| GPU
+```
+````[cite: 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
