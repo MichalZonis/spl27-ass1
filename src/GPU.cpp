@@ -9,7 +9,8 @@ GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
       cachedPrefixes(blocksNum, nullptr),
       cachedModelIds(blocksNum, ""),
       evictionCounter(0)
-{}
+{
+}
 
 GPU::GPU(const GPU &other)
     : blocksNum(other.blocksNum),
@@ -57,11 +58,18 @@ void GPU::unreserve(std::size_t n, const Request &request)
 std::size_t GPU::allocateBlock(const Request &request)
 {
     // TODO: check for "It does so only if the request has reserved enough memory for this allocation. "
-
-    std::size_t slot = findAvailableSlot();
-    activeBlocksCounter++; // Should be incremented here to reflect the allocation?
-    request.allocateOneBlock(*this, slot);
-    return slot;
+    if (requestsReservations[request.getId()] <= 0)
+    {
+        throw std::runtime_error("Request has not reserved enough memory for this allocation.");
+    }
+    else
+    {
+        requestsReservations[request.getId()]--;
+        reservedBlocksCounter--;
+        std::size_t slot = findAvailableSlot();
+        request.allocateOneBlock(*this, slot);
+        return slot;
+    }
 }
 
 void GPU::addMemoryBlock(const GenerativeRequest &request, std::size_t slot)
@@ -69,17 +77,17 @@ void GPU::addMemoryBlock(const GenerativeRequest &request, std::size_t slot)
     memory[slot] = new KVBlock(blockSize);
 }
 
-void GPU::addMemoryBlock(const EmbeddingRequest &request, std::size_t slot) {
+void GPU::addMemoryBlock(const EmbeddingRequest &request, std::size_t slot)
+{
     memory[slot] = new EmbeddingWorkspace(blockSize);
-
 }
 
-std::size_t GPU::findAvailableSlot() 
+std::size_t GPU::findAvailableSlot()
 {
 
     for (std::size_t i = 0; i < blocksNum; ++i)
     {
-        if (memory[i] == nullptr) 
+        if (memory[i] == nullptr)
         {
             return i;
         }
@@ -98,12 +106,19 @@ std::size_t GPU::findAvailableSlot()
 void assignPrefixToBlock(std::size_t block,
                          const std::vector<std::string> &prefixTokens, const std::string &modelId)
 {
+    // TODO: Implementation for assigning prefix to block
 }
 
 PrefixMatch GPU::findLongestCachedPrefix(const std::string &modelId,
                                          std::size_t embeddingSize,
                                          const std::vector<std::string> &promptTokens) const
 {
+    // TODO: Implementation for finding the longest cached prefix
+}
+
+void GPU::copyMemoryFromOtherGPU(const GPU &other, const std::vector<std::size_t> &blocks)
+{
+    // TODO: Implementation for copying memory from another GPU
 }
 
 void GPU::release(std::size_t slot)
@@ -114,7 +129,7 @@ void GPU::release(std::size_t slot)
         activeBlocksCounter--;
         IdleAction action = (*memory[slot]).onLastRelease();
         if (action == IdleAction::Destroy)
-        { 
+        {
             delete memory[slot];
             memory[slot] = nullptr;
         }
@@ -134,6 +149,16 @@ int GPU::readFromBlock(std::size_t blockId, std::size_t offset) const
 void GPU::writeToBlock(std::size_t blockId, std::size_t offset, int value)
 {
     memory[blockId]->writeToBlock(offset, value);
+}
+
+void GPU::acquire(std::size_t slot)
+{
+    (*memory[slot]).acquire();
+    activeBlocksCounter++;
+}
+
+GPU& GPU::operator=(const GPU& other){
+    //TODO: Implement assignment operator if needed
 }
 
 GPU::~GPU()

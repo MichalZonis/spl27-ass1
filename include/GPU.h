@@ -43,10 +43,9 @@ private:
     std::vector<std::size_t> reservedBlocks;
     std::size_t activeBlocksCounter;
     std::size_t reservedBlocksCounter;
-    std::size_t activeBlocks() const; //TODO: delete this. define var that keeps track of active blocks and update it on acquire/release
     std::vector<PrefixMatch*> cachedPrefixes;
     std::vector<std::string> cachedModelIds;
-    std::unordered_map<std::string, int> requestsReservations;
+    std::unordered_map<int, std::size_t> requestsReservations;
     std::size_t evictionCounter;
 };
 
