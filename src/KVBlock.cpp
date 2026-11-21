@@ -2,10 +2,14 @@
 
 KVBlock::KVBlock(std::size_t size) : MemoryBlock(size) {}
 
-IdleAction KVBlock::onLastRelease() const{
-return IdleAction::KeepCached;
+KVBlock::KVBlock(const KVBlock &other) : MemoryBlock(other) {}
+
+IdleAction KVBlock::onLastRelease() const
+{
+    return IdleAction::KeepCached;
 }
 
-MemoryBlock* KVBlock::clone() const {
-    
+MemoryBlock *KVBlock::clone() const
+{
+    return new KVBlock(*this);
 }
