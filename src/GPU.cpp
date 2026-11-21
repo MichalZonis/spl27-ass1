@@ -47,12 +47,18 @@ std::size_t GPU::getBlocksForMemory(std::size_t memory) const
 
 void GPU::reserve(std::size_t n, const Request &request)
 {
-    // TODO: Implementation for reserving blocks
+    requestsReservations[request.getId()] += n;
+    reservedBlocksCounter += n;
 }
 
 void GPU::unreserve(std::size_t n, const Request &request)
 {
-    // TODO: Implementation for unreserving blocks
+    if (requestsReservations[request.getId()] < n)
+    {
+        throw std::runtime_error("Request has not reserved enough memory to unreserve.");
+    }
+    requestsReservations[request.getId()] -= n;
+    reservedBlocksCounter -= n;
 }
 
 std::size_t GPU::allocateBlock(const Request &request)
