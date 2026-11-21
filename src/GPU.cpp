@@ -1,6 +1,7 @@
 #include "GPU.h"
 #include "MemoryBlock.h"
 #include <stdexcept>
+#include <algorithm>
 
 GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
     : blocksNum(blocksNum),
@@ -118,6 +119,27 @@ std::size_t GPU::findAvailableSlot()
     throw std::runtime_error("No available slots in GPU memory.");
 }
 
+std::size_t GPU::findAvailableSlot(std::vector<std::size_t> &blocksToIgnore)
+{
+
+    for (std::size_t i = 0; i < blocksNum; ++i)
+    {
+        if (std::find(blocksToIgnore.begin(), blocksToIgnore.end(), i) == blocksToIgnore.end() && memory[i] == nullptr)
+        {
+            return i;
+        }
+    }
+    for (std::size_t i = 0; i < blocksNum; ++i)
+    {
+        if (std::find(blocksToIgnore.begin(), blocksToIgnore.end(), i) == blocksToIgnore.end() && memory[i] != nullptr && memory[i]->getRefCount() == 0)
+        {
+            evictionCounter++;
+            return i;
+        }
+    }
+    throw std::runtime_error("No available slots in GPU memory.");
+}
+
 void GPU::assignPrefixToBlock(std::size_t block,
                               const std::vector<std::string> &prefixTokens, const std::string &modelId)
 {
@@ -187,7 +209,6 @@ PrefixMatch GPU::findLongestCachedPrefix(const std::string &modelId,
 
 void GPU::copyMemoryFromOtherGPU(const GPU &other, const std::vector<std::size_t> &blocks)
 {
-    // TODO: Implementation for copying memory from another GPU
 }
 
 void GPU::release(std::size_t slot)
