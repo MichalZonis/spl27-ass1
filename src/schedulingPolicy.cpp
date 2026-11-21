@@ -85,7 +85,7 @@ SchedulingPolicy* ShortestJobPolicy::clone() const
 {
     return new ShortestJobPolicy(*this);
 }
-
+// LongestPrefixPolicy implementation work in progress need to understand longest prefix in which gpu and how to compare between gpus and requests
 std::vector<int> LongestPrefixPolicy::choose(const std::vector<const Request*>& eligible,
                                             const std::vector<GPU>& gpus) const
 {

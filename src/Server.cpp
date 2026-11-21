@@ -106,43 +106,52 @@ bool Server::step()
     std::vector<int> order = policy->choose(eligible, gpus);
        for(auto requestIndex : order)
        {
-         auto theGPU = gpus.begin();
-         int theGPUIndex = 0;
-         int index = 0;
-            auto theprefix = theGPU->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
-            waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
-            for(auto gpu = gpus.begin(); gpu != gpus.end(); ++gpu)
+         
+         int theGPUIndex = -1;
+            auto theprefix = PrefixMatch{0, std::vector<std::size_t>()};
+            for(int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
             {
+                auto gpu = &gpus[gpuIndex];
+                if(gpu->getBlocksForMemory(waitingRequests[requestIndex]->getNeededMemory(*gpu)) > gpu->availableSlots())
+                {  
+                    continue;
+                }
+                if(theGPUIndex != -1)
+                {
+                    theGPUIndex = gpuIndex;
+                    theprefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
+                    waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
+
+                    continue;
+                }
                auto prefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
                 waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
                 if(prefix.matchedTokens > theprefix.matchedTokens)  
                     {
-                        theGPU = gpu;
                         theprefix = prefix;
-                        theGPUIndex = index;
+                        theGPUIndex = gpuIndex;
                     }
                 else if(prefix.matchedTokens==theprefix.matchedTokens)
                     {
-                        if(gpu->availableSlots() > theGPU->availableSlots())
+                        if(gpu->availableSlots() > gpus[theGPUIndex].availableSlots())
                         {
-                            theGPU = gpu;
                             theprefix = prefix;
-                            theGPUIndex = index;
+                            theGPUIndex = gpuIndex;
                         }
-                        else if(gpu->availableSlots() == theGPU->availableSlots())
+                        else if(gpu->availableSlots() == gpus[theGPUIndex].availableSlots())
                         {
-                            if(index < theGPUIndex)
+                            if(gpuIndex < theGPUIndex)
                             {
-                                theGPU = gpu;
                                 theprefix = prefix;
-                                theGPUIndex = index;
+                                theGPUIndex = gpuIndex;
                             }
                         }
                     }
-                index++;
+                waitingRequests[requestIndex]->reserveMemory(gpus[theGPUIndex]);
+                
+                
             }
-            if
-        }
+
         return true;
 }
 

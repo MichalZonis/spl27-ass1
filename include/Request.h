@@ -31,6 +31,8 @@ public:
     int getId() const;
     const Model& getModel() const;
     int getAdmissionCycle() const;
+    virtual ~Request() = 0;
+    
 };
 
 class GenerativeRequest: public Request{
@@ -50,12 +52,14 @@ public:
      void reserveMemory(GPU& gpu) override;
      std::string getOutput() const override;
      std::size_t getNeedToUnreserve() const override;
+     ~GenerativeRequest() override ;
     
 };
 
 class EmbeddingRequest: public Request{
 public:
     EmbeddingRequest(int id, const Model& model, int admissionCycle, std::string prompt);
+    ~EmbeddingRequest() override;
     std::size_t getNeededMemory(const GPU& gpu) const override;
      std::size_t getMaxNeededMemory() const override;
      std::vector<std::string> getCacheableTokens() const override;
