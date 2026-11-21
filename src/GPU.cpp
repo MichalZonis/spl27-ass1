@@ -143,7 +143,46 @@ PrefixMatch GPU::findLongestCachedPrefix(const std::string &modelId,
                                          std::size_t embeddingSize,
                                          const std::vector<std::string> &promptTokens) const
 {
-    // TODO: Implementation for finding the longest cached prefix
+    std::size_t t = blockSize / embeddingSize;
+    std::size_t maxNumOfBlocks = promptTokens.size() / t;
+    PrefixMatch result;
+    result.matchedTokens = 0;
+
+    bool foundNextBlock = true;
+    while (foundNextBlock && result.blockIds.size() < maxNumOfBlocks)
+    {
+        foundNextBlock = false;
+        std::size_t targetLen = result.matchedTokens + t;
+
+        for (std::size_t i = 0; i < blocksNum; i++)
+        {
+            if (cachedModelIds[i] == modelId &&
+                cachedPrefixes[i] != nullptr &&
+                cachedPrefixes[i]->size() == targetLen)
+            {
+                bool blockMatches = true;
+                // Check if the cached prefix matches the corresponding part of the prompt (and by extension, the already matched prefix)
+                for (std::size_t j = 0; j < targetLen; j++)
+                {
+                    if ((*cachedPrefixes[i])[j] != promptTokens[j])
+                    {
+                        blockMatches = false;
+                        break;
+                    }
+                }
+
+                if (blockMatches)
+                {
+                    result.matchedTokens += t;
+                    result.blockIds.push_back(i);
+                    foundNextBlock = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 void GPU::copyMemoryFromOtherGPU(const GPU &other, const std::vector<std::size_t> &blocks)
