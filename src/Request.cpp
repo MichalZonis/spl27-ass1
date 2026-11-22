@@ -30,11 +30,11 @@ int Request::getAdmissionCycle() const
 }
 bool EmbeddingRequest::finished() const
 {
-    return true;
+    return prossedTokens == tokens.size();
 }
 bool GenerativeRequest::finished() const
 {
-    return tokens.empty() || maxOutputTokens == 0;
+   return prossedTokens ==tokens.size() ;
 }
 void GenerativeRequest::act(GPU &gpu) // TODO: implement the act method for GenerativeRequest
 {
