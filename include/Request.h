@@ -15,6 +15,7 @@ protected:
     std::vector<std::string> tokens;
     std::vector<std::size_t> memoryBlocks;
     std::size_t reservedBlocks;
+    int theChoosenGPU;
 public:
     Request(int id, const Model& model, int admissionCycle, std::string prompt);
     virtual std::size_t getNeededMemory(const GPU& gpu) const=0;
@@ -32,6 +33,8 @@ public:
     const Model& getModel() const;
     int getAdmissionCycle() const;
     virtual ~Request() = 0;
+    void setChoosenGPU(int gpuIndex) { theChoosenGPU = gpuIndex; }
+    int getChoosenGPU() const { return theChoosenGPU; }
     
 };
 

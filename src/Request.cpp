@@ -43,7 +43,7 @@ void GenerativeRequest::act(GPU& gpu)
     std::size_t slot = gpu.allocateBlock(*this);
     allocateOneBlock(gpu, slot);
     model.generateTokenEmbedding(tokens, gpu, slot, 0);
-    
+
     
 
    
@@ -107,10 +107,11 @@ std::vector<std::string> GenerativeRequest::getCacheableTokens() const
 void GenerativeRequest::allocateOneBlock(GPU& gpu, std::size_t slot) const
 {
     gpu.addMemoryBlock(*this, slot);
-}
+}   
 void EmbeddingRequest::allocateOneBlock(GPU& gpu, std::size_t slot) const
 {
     gpu.addMemoryBlock(*this, slot);
+    
 }
 std::vector<std::string> EmbeddingRequest::getCacheableTokens() const
 {
@@ -122,7 +123,6 @@ Request* GenerativeRequest::clone(const Model& model) const
     newRequest->tokens = tokens;
     newRequest->memoryBlocks = memoryBlocks;
     newRequest->reservedBlocks = reservedBlocks;
-    newRequest->theChoosenGPU = theChoosenGPU;
     return newRequest;
 }
 Request* EmbeddingRequest::clone(const Model& model) const
@@ -131,7 +131,6 @@ Request* EmbeddingRequest::clone(const Model& model) const
     newRequest->tokens = tokens;
     newRequest->memoryBlocks = memoryBlocks;
     newRequest->reservedBlocks = reservedBlocks;
-    newRequest->theChoosenGPU = theChoosenGPU;
     return newRequest;
 }
 int Request::getId() const

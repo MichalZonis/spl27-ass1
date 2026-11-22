@@ -147,14 +147,31 @@ bool Server::step()
                             }
                         }
                     }
-                waitingRequests[requestIndex]->reserveMemory(gpus[theGPUIndex]);
-                
-                
+                    if(theGPUIndex ==-1)
+                    waitingRequests.erase(waitingRequests.begin() + requestIndex);
+                    else
+                    {
+                        waitingRequests[requestIndex]->setChoosenGPU(theGPUIndex);
+                    waitingRequests[requestIndex]->reserveMemory(gpus[theGPUIndex]); 
+                    activeRequests.push_back(waitingRequests[requestIndex]);
+                    waitingRequests.erase(waitingRequests.begin() + requestIndex); 
+                    }  
+            }
+            for(auto request = activeRequests.begin(); request != activeRequests.end();)
+            {
+                (*request)->act( gpus[(*request)->getChoosenGPU()]);
+                if((*request)->finished())
+                {
+                    (*request)->deallocateMemory(gpus[(*request)->getChoosenGPU()]);
+                    request = activeRequests.erase(request);
+                }
+                else
+                    ++request;
             }
 
         return true;
 }
-
+}
 Server::Server(string configPath)
     : gpus(), models(), nonSubmittedRequests(), waitingRequests(), activeRequests(), policy(nullptr), currentCycle(0)
 {
