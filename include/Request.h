@@ -15,6 +15,7 @@ protected:
     std::vector<std::string> tokens;
     std::vector<std::size_t> memoryBlocks;
     std::size_t reservedBlocks;
+    int theChoosenGPU;
 public:
     Request(int id, const Model& model, int admissionCycle, std::string prompt);
     virtual std::size_t getNeededMemory(const GPU& gpu) const=0;
@@ -31,6 +32,10 @@ public:
     int getId() const;
     const Model& getModel() const;
     int getAdmissionCycle() const;
+    virtual ~Request() = 0;
+    void setChoosenGPU(int gpuIndex) { theChoosenGPU = gpuIndex; }
+    int getChoosenGPU() const { return theChoosenGPU; }
+    
 };
 
 class GenerativeRequest: public Request{
@@ -40,11 +45,36 @@ private:
 public:
     GenerativeRequest(int id, const Model& model, int admissionCycle, std::string prompt, std::string scriptedOutput,
     std::size_t maxOutputTokens);
+     std::size_t getNeededMemory(const GPU& gpu) const override;
+     std::size_t getMaxNeededMemory() const override;
+     std::vector<std::string> getCacheableTokens() const override;
+     void allocateOneBlock(GPU& gpu, std::size_t slot) const override;
+     Request* clone(const Model& model) const override;
+     void act(GPU& gpu) override;
+     bool finished() const override;
+     void reserveMemory(GPU& gpu) override;
+     std::string getOutput() const override;
+     std::size_t getNeedToUnreserve() const override;
+     ~GenerativeRequest() override ;
+    
 };
 
 class EmbeddingRequest: public Request{
 public:
     EmbeddingRequest(int id, const Model& model, int admissionCycle, std::string prompt);
+    ~EmbeddingRequest() override;
+    std::size_t getNeededMemory(const GPU& gpu) const override;
+     std::size_t getMaxNeededMemory() const override;
+     std::vector<std::string> getCacheableTokens() const override;
+     void allocateOneBlock(GPU& gpu, std::size_t slot) const override;
+     Request* clone(const Model& model) const override;
+     void act(GPU& gpu) override;
+     bool finished() const override;
+     void reserveMemory(GPU& gpu) override;
+     std::string getOutput() const override;
+     std::size_t getNeedToUnreserve() const override;
+    
+
 };
 
 #endif

@@ -13,7 +13,7 @@ struct GPUConfig{
 struct ModelConfig{
     std::string id;
     std::size_t embeddingSize;
-};
+};     
 
 enum class RequestType { Generative, TextEmbedder };
 
@@ -48,8 +48,15 @@ private:
     std::vector<Request*> waitingRequests;
     std::vector<Request*> activeRequests;
     SchedulingPolicy* policy;
+    int currentCycle;
 public:
     Server(std::string configPath);
+    ~Server();
+    Server(const Server& other);
+    Server& operator=(const Server& other);
+    Server(Server&& other) noexcept;
+    Server& operator=(Server&& other) noexcept;
+    void clear();
     bool step();
     void serve();
 };
