@@ -46,7 +46,7 @@ std::size_t GPU::getBlocksForMemory(std::size_t memory) const
     return memory / blockSize + (memory % blockSize != 0);
 }
 
-//TODO: is n = #tokens or #blocks? if #tokens, then we need to convert it to #blocks by dividing by blockSize
+// TODO: is n = #tokens or #blocks? if #tokens, then we need to convert it to #blocks by dividing by blockSize
 void GPU::reserve(std::size_t n, const Request &request)
 {
     requestsReservations[request.getId()] += n;
@@ -114,7 +114,7 @@ std::size_t GPU::findAvailableSlot()
         if (memory[i] != nullptr && memory[i]->getRefCount() == 0)
         {
             evictionCounter++;
-        // memory leak need to actually delete the memory block here, but we will do that in release() when the refCount goes to 0
+            // memory leak need to actually delete the memory block here, but we will do that in release() when the refCount goes to 0
             return i;
         }
     }
@@ -234,10 +234,10 @@ void GPU::copyMemoryFromOtherGPU(const GPU &other, const std::vector<std::size_t
     for (const auto blockId : blocks)
     {
         std::size_t slot = findAvailableSlot(duplicatePrefixesSlots);
-        duplicatePrefixesSlots.push_back(slot); //TODO: check if already in the list, if so, don't add it again
+        duplicatePrefixesSlots.push_back(slot); // TODO: check if already in the list, if so, don't add it again
 
-        //TODO: addd= ModelId and Prefix to the new slot
-        memory[slot] = (*other.memory[blockId]).clone(); //TODO: do so only if the block is not already in the GPU memory
+        // TODO: addd= ModelId and Prefix to the new slot
+        memory[slot] = (*other.memory[blockId]).clone(); // TODO: do so only if the block is not already in the GPU memory
     }
 }
 
@@ -284,3 +284,5 @@ GPU::~GPU()
         delete block;
     }
 }
+
+std::size_t GPU::getBlockSize() const { return blockSize; }
