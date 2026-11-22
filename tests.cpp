@@ -8,12 +8,8 @@
 
 #include "Model.h"
 #include "MemoryBlock.h"
-#include "KVBlock.h"
-#include "EmbeddingWorkspace.h"
 #include "GPU.h"
 #include "Request.h"
-#include "GenerativeRequest.h"
-#include "EmbeddingRequest.h"
 #include "SchedulingPolicy.h"
 #include "Server.h"
 
