@@ -1,48 +1,34 @@
-# All Targets
+CXX       = g++
+CXXFLAGS  = -g -Wall -Weffc++ -std=c++11 -Iinclude -MMD -MP
 
-all: server
+SRC_DIR   = src
+BIN_DIR   = bin
+TARGET    = $(BIN_DIR)/server
 
+SRCS      = $(wildcard $(SRC_DIR)/*.cpp)
+OBJS      = $(patsubst $(SRC_DIR)/%.cpp,$(BIN_DIR)/%.o,$(SRCS))
+DEPS      = $(OBJS:.o=.d)
 
-# Tool invocations
+# All object files except Main.o (for building standalone unit tests)
+TEST_OBJS = $(filter-out $(BIN_DIR)/Main.o,$(OBJS))
 
-# Executable "server" depends on the files server.o and 
+.PHONY: all clean tests
 
+all: $(TARGET)
 
-server: clean bin/Server.o 
+$(TARGET): $(OBJS) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
 
-	@echo 'Building target: server'
+$(BIN_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-	@echo 'Invoking: C++ Linker'
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
 
-	g++ -o bin/server bin/Server.o bin/Model.o bin/Main.o 
-
-	@echo 'Finished building target: server'
-
-	@echo ' '
-
-
-# Depends on the source and header files
-
-bin/Server.o: src/Server.cpp
-
-	g++ -g -Wall -Weffc++ -std=c++11 -c -Iinclude -o bin/Server.o src/Server.cpp
-
-# Depends on the source and header files
-
-bin/Main.o: src/Main.cpp
-
-	g++ -g -Wall -Weffc++ -std=c++11 -c -Iinclude -o bin/Main.o src/Main.cpp
-
-# Depends on the source and header files
-
-bin/Model.o: src/Model.cpp
-
-	g++ -g -Wall -Weffc++ -std=c++11 -c -Iinclude -o bin/Model.o src/Model.cpp
-
-
-#Clean the build directory
+tests: $(TEST_OBJS) tests.cpp | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -o $(BIN_DIR)/tests tests.cpp $(TEST_OBJS)
 
 clean:
-	
-	rm -f bin/*
+	rm -rf $(BIN_DIR)
 
+-include $(DEPS)
