@@ -113,12 +113,19 @@ std::size_t GPU::findAvailableSlot()
     {
         if (memory[i] != nullptr && memory[i]->getRefCount() == 0)
         {
-            evictionCounter++;
-            // memory leak need to actually delete the memory block here, but we will do that in release() when the refCount goes to 0
+            evict(i);
             return i;
         }
     }
     throw std::runtime_error("No available slots in GPU memory.");
+}
+
+void GPU::evict(std::size_t slot)
+{
+    evictionCounter++;
+    delete memory[slot];
+    cachedModelIds[slot] = nullptr;
+    cachedPrefixes[slot] = nullptr;
 }
 
 std::size_t GPU::findAvailableSlot(std::vector<std::size_t> &blocksToIgnore)
