@@ -18,6 +18,33 @@ MemoryBlock::MemoryBlock(MemoryBlock &&other) : size(other.size), refCount(0)
 
 MemoryBlock &MemoryBlock::operator=(const MemoryBlock &other)
 {
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    delete[] data;
+    data = nullptr;
+    refCount = 0;
+    size = other.size;
+    data = new int[size];
+    std::copy(other.data, other.data + size, data);
+    return *this;
+}
+
+MemoryBlock &MemoryBlock::operator=(MemoryBlock &&other)
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    delete[] data;
+    data = nullptr;
+    refCount = 0;
+    size = other.size;
+    data = other.data;
+    return *this;
 }
 
 MemoryBlock::~MemoryBlock()

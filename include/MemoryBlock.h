@@ -29,6 +29,7 @@ public:
     MemoryBlock(MemoryBlock &&other);
     MemoryBlock(const MemoryBlock &other);
     MemoryBlock &operator=(const MemoryBlock &other);
+    MemoryBlock &operator=( MemoryBlock &&other);
 };
 
 class KVBlock : public MemoryBlock

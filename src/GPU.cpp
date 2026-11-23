@@ -334,6 +334,12 @@ void GPU::acquire(std::size_t slot)
 
 GPU &GPU::operator=(GPU &&other)
 {
+
+    if (this == &other)
+    {
+        return *this;
+    }
+    
     clear();
     blocksNum = other.blocksNum;
     blockSize = other.blockSize;
@@ -366,10 +372,17 @@ GPU &GPU::operator=(GPU &&other)
         }
         cachedModelIds[i] = other.cachedModelIds[i];
     }
+
+    return *this;
 }
 
 GPU &GPU::operator=(const GPU &other)
 {
+    if (this == &other)
+    {
+        return *this;
+    }
+
     clear();
     blocksNum = other.blocksNum;
     blockSize = other.blockSize;
@@ -404,6 +417,8 @@ GPU &GPU::operator=(const GPU &other)
         }
         cachedModelIds[i] = other.cachedModelIds[i];
     }
+
+    return *this;
 }
 
 std::size_t GPU::getCacheHits() const
