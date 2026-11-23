@@ -46,7 +46,6 @@ std::size_t GPU::getBlocksForMemory(std::size_t memory) const
     return memory / blockSize + (memory % blockSize != 0);
 }
 
-// TODO: is n = #tokens or #blocks? if #tokens, then we need to convert it to #blocks by dividing by blockSize
 void GPU::reserve(std::size_t n, const Request &request)
 {
     requestsReservations[request.getId()] += n;
@@ -166,8 +165,7 @@ void GPU::assignPrefixToBlock(std::size_t block,
     if (exisitingBlock != -1)
     {
         cachedModelIds[block] = modelId;
-        cachedPrefixes[block] = new std::vector<std::string>(prefixTokens); // TODO: how is this vector created? if it an rvalue, no need to new it, just assign it.
-                                                                            // if it is an lvalue, then we need to copy it.
+        cachedPrefixes[block] = new std::vector<std::string>(prefixTokens); 
     }
 }
 
@@ -219,32 +217,48 @@ PrefixMatch GPU::findLongestCachedPrefix(const std::string &modelId,
 
 void GPU::copyMemoryFromOtherGPU(const GPU &other, const std::vector<std::size_t> &blocks)
 {
-    std::vector<std::size_t> duplicatePrefixesSlots;
-    for (const auto blockId : blocks)
+    std::vector<std::size_t> protectedSlots;
+    std::vector<std::size_t> blocksToCopy;
+
+    // 1. Find duplicates (protect their slots) and collect only missing blocks
+    for (const std::size_t blockId : blocks)
     {
-        if (other.cachedPrefixes[blockId] != nullptr)
+        if (other.cachedPrefixes[blockId] == nullptr)
         {
-            std::vector<std::string> &perfixCopy = *other.cachedPrefixes[blockId];
-            bool isDuplicate = false;
-            for (int i = 0; i < blocksNum && !isDuplicate; i++)
+            continue;
+        }
+
+        const std::vector<std::string> &prefixCopy = *other.cachedPrefixes[blockId];
+        const std::string &modelIdCopy = other.cachedModelIds[blockId];
+        bool isDuplicate = false;
+
+        for (std::size_t i = 0; i < blocksNum; ++i)
+        {
+            if (cachedPrefixes[i] != nullptr &&
+                cachedModelIds[i] == modelIdCopy &&
+                *cachedPrefixes[i] == prefixCopy)
             {
-                if (cachedPrefixes[i] != nullptr && *cachedPrefixes[i] == perfixCopy)
-                {
-                    isDuplicate = true;
-                    duplicatePrefixesSlots.push_back(i);
-                    break;
-                }
+                isDuplicate = true;
+                protectedSlots.push_back(i);
+                break;
             }
+        }
+
+        if (!isDuplicate)
+        {
+            blocksToCopy.push_back(blockId);
         }
     }
 
-    for (const auto blockId : blocks)
+    // 2. Deep-copy missing blocks and protect each newly filled slot
+    for (const std::size_t blockId : blocksToCopy)
     {
-        std::size_t slot = findAvailableSlot(duplicatePrefixesSlots);
-        duplicatePrefixesSlots.push_back(slot); // TODO: check if already in the list, if so, don't add it again
+        std::size_t slot = findAvailableSlot(protectedSlots);
+        protectedSlots.push_back(slot);
 
-        // TODO: addd= ModelId and Prefix to the new slot
-        memory[slot] = (*other.memory[blockId]).clone(); // TODO: do so only if the block is not already in the GPU memory
+        cachedModelIds[slot] = other.cachedModelIds[blockId];
+        cachedPrefixes[slot] = new std::vector<std::string>(*other.cachedPrefixes[blockId]);
+        memory[slot] = other.memory[blockId]->clone();
     }
 }
 
