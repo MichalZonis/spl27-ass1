@@ -43,6 +43,8 @@ public:
     std::size_t getCacheHits() const;
     GPU &operator=(GPU &&other);
     GPU &operator=(const GPU &other);
+    GPU(const GPU &other);
+    GPU(GPU &&other);
 
 private:
     std::size_t blocksNum;

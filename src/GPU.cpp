@@ -33,7 +33,7 @@ GPU::GPU(const GPU &other)
         if (other.memory[i] != nullptr)
         {
             memory[i] = other.memory[i]->clone();
-            for (std::size_t i = 0; i < other.memory[i]->getRefCount(); i++)
+            for (std::size_t j = 0; j < other.memory[i]->getRefCount(); j++)
             {
                 memory[i]->acquire();
             }
@@ -43,6 +43,34 @@ GPU::GPU(const GPU &other)
             cachedPrefixes[i] = new std::vector<std::string>(*other.cachedPrefixes[i]);
         }
         cachedModelIds[i] = other.cachedModelIds[i];
+    }
+}
+
+GPU::GPU(GPU &&other)
+    : blocksNum(other.blocksNum),
+      blockSize(other.blockSize),
+      memory(other.blocksNum, nullptr),
+      cachedPrefixes(other.blocksNum, nullptr),
+      cachedModelIds(other.blocksNum, ""),
+      evictionCounter(other.evictionCounter),
+      activeBlocksCounter(other.activeBlocksCounter),
+      reservedBlocksCounter(other.reservedBlocksCounter),
+      cacheHits(other.cacheHits)
+{
+
+    for (std::size_t i = 0; i < blocksNum; ++i)
+    {
+        if (other.memory[i] != nullptr)
+        {
+            memory[i] = other.memory[i];
+            other.memory[i] = nullptr;
+        }
+        if (other.cachedPrefixes[i] != nullptr)
+        {
+            cachedPrefixes[i] = other.cachedPrefixes[i];
+        }
+        cachedModelIds[i] = other.cachedModelIds[i];
+        other.cachedPrefixes[i] = nullptr;
     }
 }
 
@@ -320,6 +348,7 @@ GPU &GPU::operator=(GPU &&other)
         if (other.memory[i] != nullptr)
         {
             memory[i] = other.memory[i];
+            other.memory[i] = nullptr;
         }
         else
         {
@@ -329,6 +358,7 @@ GPU &GPU::operator=(GPU &&other)
         if (other.cachedPrefixes[i] != nullptr)
         {
             cachedPrefixes[i] = other.cachedPrefixes[i];
+            other.cachedPrefixes[i] = nullptr;
         }
         else
         {
@@ -354,7 +384,7 @@ GPU &GPU::operator=(const GPU &other)
         if (other.memory[i] != nullptr)
         {
             memory[i] = other.memory[i]->clone();
-            for (std::size_t i = 0; i < other.memory[i]->getRefCount(); i++)
+            for (std::size_t j = 0; j < other.memory[j]->getRefCount(); j++)
             {
                 memory[i]->acquire();
             }
