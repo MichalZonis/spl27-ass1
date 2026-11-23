@@ -33,6 +33,10 @@ GPU::GPU(const GPU &other)
         if (other.memory[i] != nullptr)
         {
             memory[i] = other.memory[i]->clone();
+            for (std::size_t i = 0; i < other.memory[i]->getRefCount(); i++)
+            {
+                memory[i]->acquire();
+            }
         }
         if (other.cachedPrefixes[i] != nullptr)
         {
@@ -305,11 +309,13 @@ GPU &GPU::operator=(const GPU &other)
     // TODO: Implement assignment operator if needed
 }
 
-std::size_t GPU::getCacheHits(){
+std::size_t GPU::getCacheHits()
+{
     return cacheHits;
 }
 
-std::size_t GPU::getEvictions(){
+std::size_t GPU::getEvictions()
+{
     return evictionCounter;
 }
 
