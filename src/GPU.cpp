@@ -309,21 +309,29 @@ GPU &GPU::operator=(const GPU &other)
     // TODO: Implement assignment operator if needed
 }
 
-std::size_t GPU::getCacheHits()
+std::size_t GPU::getCacheHits() const
 {
     return cacheHits;
 }
 
-std::size_t GPU::getEvictions()
+std::size_t GPU::getEvictions() const
 {
     return evictionCounter;
 }
 
 GPU::~GPU()
 {
-    for (auto block : memory)
+    for (std::size_t i = 0; i < cachedPrefixes.size(); ++i)
     {
-        delete block;
+        delete cachedPrefixes[i];
+        cachedPrefixes[i] = nullptr;
+    }
+
+    // Don't forget to free the MemoryBlock* slots as well:
+    for (std::size_t i = 0; i < memory.size(); ++i)
+    {
+        delete memory[i];
+        memory[i] = nullptr;
     }
 }
 

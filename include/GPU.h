@@ -39,8 +39,8 @@ public:
     std::size_t findAvailableSlot(std::vector<std::size_t> &blocksToIgnore);
     std::size_t getBlockSize() const;
     void evict(std::size_t slot);
-    std::size_t getEvictions();
-    std::size_t getCacheHits();
+    std::size_t getEvictions() const;
+    std::size_t getCacheHits() const;
 
 private:
     std::size_t blocksNum;
