@@ -38,6 +38,13 @@ public:
     std::size_t findAvailableSlot();
     std::size_t findAvailableSlot(std::vector<std::size_t> &blocksToIgnore);
     std::size_t getBlockSize() const;
+    void evict(std::size_t slot);
+    std::size_t getEvictions() const;
+    std::size_t getCacheHits() const;
+    GPU &operator=(GPU &&other);
+    GPU &operator=(const GPU &other);
+    GPU(const GPU &other);
+    GPU(GPU &&other);
 
 private:
     std::size_t blocksNum;
@@ -52,6 +59,8 @@ private:
     std::unordered_map<int, std::size_t> requestsReservations; //{request.getId(), reservedBlocksNum}
     std::size_t evictionCounter;
     void decreaseReservations(const Request &request);
+    std::size_t cacheHits;
+    void clear();
 };
 
 #endif
