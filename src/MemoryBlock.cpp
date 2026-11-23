@@ -12,7 +12,10 @@ MemoryBlock::MemoryBlock(const MemoryBlock &other) : size(other.size), refCount(
 MemoryBlock::~MemoryBlock(){
     delete[] data;
 }
-
+MemoryBlock& MemoryBlock::operator=(const MemoryBlock &other)
+{
+ 
+}
 std::size_t MemoryBlock::getRefCount() const
 {
     return refCount;

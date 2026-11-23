@@ -70,7 +70,6 @@ Config Server::readConfig(string configPath) const
 
 void Server::serve()
 {
-    int cycle = 0;
     while (step())
     {
         currentCycle++;
@@ -81,6 +80,18 @@ void Server::serve()
               << "Non-submitted requests: " << nonSubmittedRequests.size()
               << "Cycles: " << currentCycle
               << std::endl;
+    
+    int cacheHits=0;
+    int evictions=0;
+    for (int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
+    {
+        cacheHits +=gpus[gpuIndex].getCacheHits();
+        evictions +=gpus[gpuIndex].getEvictions(); 
+    }
+    std::cout<<"Summary: cycles="<< currentCycle
+    <<"CacheHits="<< cacheHits
+    <<"Evictions="<<evictions
+    << std::endl;
 }
 bool Server::step()
 {
@@ -148,7 +159,12 @@ bool Server::step()
                 }
             }
             if (theGPUIndex == -1)
+            {
+                std:cout<< "rejected  id:" <<waitingRequests[requestIndex]->getId()
+                <<"Cycles:"<< currentCycle << std::endl;
                 waitingRequests.erase(waitingRequests.begin() + requestIndex);
+                
+            }
             else
             {
                 waitingRequests[requestIndex]->setChoosenGPU(theGPUIndex);
@@ -175,6 +191,8 @@ bool Server::step()
         if ((*request)->finished())
         {
             (*request)->deallocateMemory(gpus[(*request)->getChoosenGPU()]);
+            std:cout<< "finished  id:" <<(*request)->getId()
+                <<"Cycles:"<< currentCycle << std::endl;
             request = activeRequests.erase(request);
         }
         else
