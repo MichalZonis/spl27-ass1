@@ -327,7 +327,6 @@ GPU::~GPU()
         cachedPrefixes[i] = nullptr;
     }
 
-    // Don't forget to free the MemoryBlock* slots as well:
     for (std::size_t i = 0; i < memory.size(); ++i)
     {
         delete memory[i];
