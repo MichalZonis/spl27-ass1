@@ -4,7 +4,7 @@
 
 Request::Request(int id, const Model &model, int admissionCycle, std::string prompt)
     : id(id), model(model), admissionCycle(admissionCycle), tokens(model.tokenizer(prompt)),
-      reservedBlocks(0)
+      reservedBlocks(0), theChoosenGPU(-1), prossedTokens(0)
 {
 }
 GenerativeRequest::GenerativeRequest(int id, const Model &model, int admissionCycle, std::string prompt, std::string scriptedOutput,
@@ -36,7 +36,7 @@ bool GenerativeRequest::finished() const
 {
    return prossedTokens ==tokens.size() ;
 }
-void GenerativeRequest::act(GPU &gpu) // TODO: implement the act method for GenerativeRequest
+void GenerativeRequest::act(GPU &gpu) 
 {
        if (finished())
         return;
@@ -51,7 +51,7 @@ void GenerativeRequest::act(GPU &gpu) // TODO: implement the act method for Gene
     model.generateTokenEmbedding(tokens, gpu, slot, t / model.getEmbeddingSize());
     prossedTokens++;
 }
-void EmbeddingRequest::act(GPU &gpu) // TODO: implement the act method for EmbeddingRequest
+void EmbeddingRequest::act(GPU &gpu) 
 {
     if (finished())
         return;
