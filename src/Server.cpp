@@ -229,11 +229,11 @@ Server::Server(string configPath)
         }
         if (requestConfig.type == RequestType::Generative)
         {
-            nonSubmittedRequests.push_back(new GenerativeRequest(requestConfig.id, model, requestConfig.admissionCycle, requestConfig.prompt, requestConfig.scriptedOutput, requestConfig.maxOutputTokens));
+            nonSubmittedRequests.push_back(new GenerativeRequest(requestConfig.id, *model, requestConfig.admissionCycle, requestConfig.prompt, requestConfig.scriptedOutput, requestConfig.maxOutputTokens));
         }
         else if (requestConfig.type == RequestType::TextEmbedder)
         {
-            nonSubmittedRequests.push_back(new EmbeddingRequest(requestConfig.id, model, requestConfig.admissionCycle, requestConfig.prompt));
+            nonSubmittedRequests.push_back(new EmbeddingRequest(requestConfig.id, *model, requestConfig.admissionCycle, requestConfig.prompt));
         }
     }
 }
