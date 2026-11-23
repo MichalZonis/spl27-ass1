@@ -74,7 +74,7 @@ void Server::serve()
     {
         currentCycle++;
     }
-
+    //TODO: erase before submission
     std::cout << "Active requests: " << activeRequests.size()
               << "Waiting requests: " << waitingRequests.size()
               << "Non-submitted requests: " << nonSubmittedRequests.size()
@@ -88,9 +88,9 @@ void Server::serve()
         cacheHits +=gpus[gpuIndex].getCacheHits();
         evictions +=gpus[gpuIndex].getEvictions(); 
     }
-    std::cout<<"Summary: cycles="<< currentCycle
-    <<"CacheHits="<< cacheHits
-    <<"Evictions="<<evictions
+    std::cout<<"summary: cycles="<< currentCycle
+    <<" cache_hits="<< cacheHits
+    <<" evictions="<<evictions
     << std::endl;
 }
 bool Server::step()
@@ -160,8 +160,8 @@ bool Server::step()
             }
             if (theGPUIndex == -1)
             {
-                std:cout<< "rejected  id:" <<waitingRequests[requestIndex]->getId()
-                <<"Cycles:"<< currentCycle << std::endl;
+                std:cout<< "rejected " <<waitingRequests[requestIndex]->getId()
+                <<" cycle="<< currentCycle << std::endl;
                 waitingRequests.erase(waitingRequests.begin() + requestIndex);
                 
             }
@@ -191,8 +191,10 @@ bool Server::step()
         if ((*request)->finished())
         {
             (*request)->deallocateMemory(gpus[(*request)->getChoosenGPU()]);
-            std:cout<< "finished  id:" <<(*request)->getId()
-                <<"Cycles:"<< currentCycle << std::endl;
+            std:cout<< "finished " <<(*request)->getId()
+                <<" cycle="<< currentCycle << 
+                " gpu=" <<(*request)->getChoosenGPU() <<
+                ": "<< (*request)->getOutput()<< std::endl;
             request = activeRequests.erase(request);
         }
         else
@@ -215,7 +217,7 @@ Server::Server(string configPath)
     {
         models.emplace_back(modelConfig.id, modelConfig.embeddingSize);
     }
-    // return here after complting policy
+    
     if (config.policy == "arrivalOrder")
     {
         policy = new ArrivalOrderPolicy();
