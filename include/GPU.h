@@ -41,6 +41,8 @@ public:
     void evict(std::size_t slot);
     std::size_t getEvictions() const;
     std::size_t getCacheHits() const;
+    GPU &operator=(GPU &&other);
+    GPU &operator=(const GPU &other);
 
 private:
     std::size_t blocksNum;

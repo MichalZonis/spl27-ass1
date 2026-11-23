@@ -304,6 +304,40 @@ void GPU::acquire(std::size_t slot)
     cacheHits++;
 }
 
+GPU &GPU::operator=(GPU &&other)
+{
+    clear();
+    blocksNum = other.blocksNum;
+    blockSize = other.blockSize;
+    cachedModelIds.reserve(blocksNum);
+    cachedModelIds.reserve(blocksNum);
+    evictionCounter = other.evictionCounter;
+    activeBlocksCounter = other.activeBlocksCounter;
+    reservedBlocksCounter = other.reservedBlocksCounter;
+    cacheHits = other.cacheHits;
+    for (std::size_t i = 0; i < blocksNum; ++i)
+    {
+        if (other.memory[i] != nullptr)
+        {
+            memory[i] = other.memory[i];
+        }
+        else
+        {
+            memory[i] = nullptr;
+        }
+
+        if (other.cachedPrefixes[i] != nullptr)
+        {
+            cachedPrefixes[i] = other.cachedPrefixes[i];
+        }
+        else
+        {
+            cachedPrefixes[i] = nullptr;
+        }
+        cachedModelIds[i] = other.cachedModelIds[i];
+    }
+}
+
 GPU &GPU::operator=(const GPU &other)
 {
     clear();
