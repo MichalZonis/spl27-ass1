@@ -40,7 +40,11 @@ void GenerativeRequest::act(GPU &gpu)
 {
        if (finished())
         return;
-    std::size_t slot = memoryBlocks.back();
+    std::size_t slot;
+
+    if(!memoryBlocks.empty())
+     slot = memoryBlocks.back();
+
     std::size_t t = prossedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
     if (t == 0)
     {
@@ -50,6 +54,9 @@ void GenerativeRequest::act(GPU &gpu)
     }
     model.generateTokenEmbedding(tokens, gpu, slot, t / model.getEmbeddingSize());
     prossedTokens++;
+    t = prossedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
+    if(t==0)
+    gpu.assignPrefixToBlock(slot,tokens,model.getId());
 }
 void EmbeddingRequest::act(GPU &gpu) 
 {

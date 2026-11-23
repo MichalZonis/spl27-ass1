@@ -34,6 +34,7 @@ public:
     KVBlock(size_t size);
     virtual IdleAction onLastRelease() const;
     virtual MemoryBlock *clone() const;
+    ~KVBlock();
 };
 
 class EmbeddingWorkspace : public MemoryBlock
