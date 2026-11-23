@@ -26,6 +26,9 @@ public:
     IdleAction release();
     size_t getRefCount() const;
     virtual ~MemoryBlock();
+    MemoryBlock(MemoryBlock &&other);
+    MemoryBlock(const MemoryBlock &other);
+    MemoryBlock &operator=(const MemoryBlock &other);
 };
 
 class KVBlock : public MemoryBlock
@@ -35,6 +38,9 @@ public:
     virtual IdleAction onLastRelease() const;
     virtual MemoryBlock *clone() const;
     ~KVBlock();
+    KVBlock(KVBlock &&other);
+    KVBlock(const KVBlock &other);
+    KVBlock &operator=(const KVBlock &other);
 };
 
 class EmbeddingWorkspace : public MemoryBlock
