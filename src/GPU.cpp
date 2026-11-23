@@ -133,7 +133,7 @@ void GPU::evict(std::size_t slot)
 {
     evictionCounter++;
     delete memory[slot];
-    cachedModelIds[slot] = nullptr;
+    cachedModelIds[slot] = "";
     cachedPrefixes[slot] = nullptr;
 }
 
@@ -306,7 +306,40 @@ void GPU::acquire(std::size_t slot)
 
 GPU &GPU::operator=(const GPU &other)
 {
-    // TODO: Implement assignment operator if needed
+    clear();
+    blocksNum = other.blocksNum;
+    blockSize = other.blockSize;
+    cachedModelIds.reserve(blocksNum);
+    cachedModelIds.reserve(blocksNum);
+    evictionCounter = other.evictionCounter;
+    activeBlocksCounter = other.activeBlocksCounter;
+    reservedBlocksCounter = other.reservedBlocksCounter;
+    cacheHits = other.cacheHits;
+    for (std::size_t i = 0; i < blocksNum; ++i)
+    {
+        if (other.memory[i] != nullptr)
+        {
+            memory[i] = other.memory[i]->clone();
+            for (std::size_t i = 0; i < other.memory[i]->getRefCount(); i++)
+            {
+                memory[i]->acquire();
+            }
+        }
+        else
+        {
+            memory[i] = nullptr;
+        }
+
+        if (other.cachedPrefixes[i] != nullptr)
+        {
+            cachedPrefixes[i] = new std::vector<std::string>(*other.cachedPrefixes[i]);
+        }
+        else
+        {
+            cachedPrefixes[i] = nullptr;
+        }
+        cachedModelIds[i] = other.cachedModelIds[i];
+    }
 }
 
 std::size_t GPU::getCacheHits() const
@@ -320,6 +353,11 @@ std::size_t GPU::getEvictions() const
 }
 
 GPU::~GPU()
+{
+    clear();
+}
+
+void GPU::clear()
 {
     for (std::size_t i = 0; i < cachedPrefixes.size(); ++i)
     {

@@ -56,6 +56,7 @@ private:
     std::size_t evictionCounter;
     void decreaseReservations(const Request &request);
     std::size_t cacheHits;
+    void clear();
 };
 
 #endif
