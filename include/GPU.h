@@ -53,6 +53,7 @@ private:
     std::unordered_map<int, std::size_t> requestsReservations; //{request.getId(), reservedBlocksNum}
     std::size_t evictionCounter;
     void decreaseReservations(const Request &request);
+    std::size_t cache_hits;
 };
 
 #endif

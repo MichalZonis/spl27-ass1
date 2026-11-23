@@ -9,7 +9,10 @@ GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
       memory(blocksNum, nullptr),
       cachedPrefixes(blocksNum, nullptr),
       cachedModelIds(blocksNum, ""),
-      evictionCounter(0)
+      evictionCounter(0),
+      activeBlocksCounter(0),
+      reservedBlocksCounter(0),
+      cache_hits(0)
 {
 }
 
@@ -19,7 +22,10 @@ GPU::GPU(const GPU &other)
       memory(other.blocksNum, nullptr),
       cachedPrefixes(other.blocksNum, nullptr),
       cachedModelIds(other.blocksNum, ""),
-      evictionCounter(other.evictionCounter)
+      evictionCounter(other.evictionCounter),
+      activeBlocksCounter(other.activeBlocksCounter),
+      reservedBlocksCounter(other.reservedBlocksCounter),
+      cache_hits(other.cache_hits)
 {
 
     for (std::size_t i = 0; i < blocksNum; ++i)
@@ -30,7 +36,7 @@ GPU::GPU(const GPU &other)
         }
         if (other.cachedPrefixes[i] != nullptr)
         {
-            cachedPrefixes[i] = other.cachedPrefixes[i]; // TODO: Consider deep copying the cached prefixes if necessary
+            cachedPrefixes[i] = new std::vector<std::string>(*other.cachedPrefixes[i]);
         }
         cachedModelIds[i] = other.cachedModelIds[i];
     }
@@ -165,7 +171,7 @@ void GPU::assignPrefixToBlock(std::size_t block,
     if (exisitingBlock != -1)
     {
         cachedModelIds[block] = modelId;
-        cachedPrefixes[block] = new std::vector<std::string>(prefixTokens); 
+        cachedPrefixes[block] = new std::vector<std::string>(prefixTokens);
     }
 }
 
@@ -291,6 +297,7 @@ void GPU::acquire(std::size_t slot)
 {
     (*memory[slot]).acquire();
     activeBlocksCounter++;
+    cache_hits++;
 }
 
 GPU &GPU::operator=(const GPU &other)
