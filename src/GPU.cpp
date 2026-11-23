@@ -12,7 +12,7 @@ GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
       evictionCounter(0),
       activeBlocksCounter(0),
       reservedBlocksCounter(0),
-      cache_hits(0)
+      cacheHits(0)
 {
 }
 
@@ -25,7 +25,7 @@ GPU::GPU(const GPU &other)
       evictionCounter(other.evictionCounter),
       activeBlocksCounter(other.activeBlocksCounter),
       reservedBlocksCounter(other.reservedBlocksCounter),
-      cache_hits(other.cache_hits)
+      cacheHits(other.cacheHits)
 {
 
     for (std::size_t i = 0; i < blocksNum; ++i)
@@ -297,12 +297,20 @@ void GPU::acquire(std::size_t slot)
 {
     (*memory[slot]).acquire();
     activeBlocksCounter++;
-    cache_hits++;
+    cacheHits++;
 }
 
 GPU &GPU::operator=(const GPU &other)
 {
     // TODO: Implement assignment operator if needed
+}
+
+std::size_t GPU::getCacheHits(){
+    return cacheHits;
+}
+
+std::size_t GPU::getEvictions(){
+    return evictionCounter;
 }
 
 GPU::~GPU()
