@@ -6,3 +6,4 @@ IdleAction EmbeddingWorkspace::onLastRelease() const
 {
     return IdleAction::Destroy;
 }
+EmbeddingWorkspace::~EmbeddingWorkspace(){}

@@ -13,3 +13,5 @@ MemoryBlock *KVBlock::clone() const
 {
     return new KVBlock(*this);
 }
+ 
+KVBlock::~KVBlock(){}

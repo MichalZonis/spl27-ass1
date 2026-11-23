@@ -73,14 +73,14 @@ void Server::serve()
     int cycle = 0;
     while (step())
     {
-        currentCycle ++;
+        currentCycle++;
     }
 
-    std::cout << "Active requests: " << activeRequests.size() 
-    <<"Waiting requests: " << waitingRequests.size()
-    << "Non-submitted requests: " << nonSubmittedRequests.size() 
-    << "Cycles: " << currentCycle
-    << std::endl;
+    std::cout << "Active requests: " << activeRequests.size()
+              << "Waiting requests: " << waitingRequests.size()
+              << "Non-submitted requests: " << nonSubmittedRequests.size()
+              << "Cycles: " << currentCycle
+              << std::endl;
 }
 bool Server::step()
 {
@@ -89,88 +89,99 @@ bool Server::step()
         return false;
     }
 
-    for(auto request= nonSubmittedRequests.begin(); request != nonSubmittedRequests.end();)
+    for (auto request = nonSubmittedRequests.begin(); request != nonSubmittedRequests.end();)
+    {
+        if ((*request)->getAdmissionCycle() == currentCycle)
         {
-            if((*request)->getAdmissionCycle() == currentCycle)
-            {
-                waitingRequests.push_back(*request);
-                request = nonSubmittedRequests.erase(request);
-            }
-            else
-            {
-                ++request;
-            }
+            waitingRequests.push_back(*request);
+            request = nonSubmittedRequests.erase(request);
         }
+        else
+        {
+            ++request;
+        }
+    }
 
-    std::vector<const Request*> eligible(waitingRequests.begin(), waitingRequests.end());
+    std::vector<const Request *> eligible(waitingRequests.begin(), waitingRequests.end());
     std::vector<int> order = policy->choose(eligible, gpus);
-       for(auto requestIndex : order)
-       {
-         
-         int theGPUIndex = -1;
-            auto theprefix = PrefixMatch{0, std::vector<std::size_t>()};
-            for(int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
-            {
-                auto gpu = &gpus[gpuIndex];
-                if(gpu->getBlocksForMemory(waitingRequests[requestIndex]->getNeededMemory(*gpu)) > gpu->availableSlots())
-                {  
-                    continue;
-                }
-                if(theGPUIndex != -1)
-                {
-                    theGPUIndex = gpuIndex;
-                    theprefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
-                    waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
+    for (auto requestIndex : order)
+    {
 
-                    continue;
+        int theGPUIndex = -1;
+        auto theprefix = PrefixMatch{0, std::vector<std::size_t>()};
+        for (int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
+        {
+            auto gpu = &gpus[gpuIndex];
+            if (gpu->getBlocksForMemory(waitingRequests[requestIndex]->getNeededMemory(*gpu)) > gpu->availableSlots())
+            {
+                continue;
+            }
+            if (theGPUIndex != -1)
+            {
+                theGPUIndex = gpuIndex;
+                theprefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
+                                                         waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
+
+                continue;
+            }
+            auto prefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
+                                                       waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
+            if (prefix.matchedTokens > theprefix.matchedTokens)
+            {
+                theprefix = prefix;
+                theGPUIndex = gpuIndex;
+            }
+            else if (prefix.matchedTokens == theprefix.matchedTokens)
+            {
+                if (gpu->availableSlots() > gpus[theGPUIndex].availableSlots())
+                {
+                    theprefix = prefix;
+                    theGPUIndex = gpuIndex;
                 }
-               auto prefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
-                waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
-                if(prefix.matchedTokens > theprefix.matchedTokens)  
+                else if (gpu->availableSlots() == gpus[theGPUIndex].availableSlots())
+                {
+                    if (gpuIndex < theGPUIndex)
                     {
                         theprefix = prefix;
                         theGPUIndex = gpuIndex;
                     }
-                else if(prefix.matchedTokens==theprefix.matchedTokens)
-                    {
-                        if(gpu->availableSlots() > gpus[theGPUIndex].availableSlots())
-                        {
-                            theprefix = prefix;
-                            theGPUIndex = gpuIndex;
-                        }
-                        else if(gpu->availableSlots() == gpus[theGPUIndex].availableSlots())
-                        {
-                            if(gpuIndex < theGPUIndex)
-                            {
-                                theprefix = prefix;
-                                theGPUIndex = gpuIndex;
-                            }
-                        }
-                    }
-                    if(theGPUIndex ==-1)
-                    waitingRequests.erase(waitingRequests.begin() + requestIndex);
-                    else
-                    {
-                        waitingRequests[requestIndex]->setChoosenGPU(theGPUIndex);
-                    waitingRequests[requestIndex]->reserveMemory(gpus[theGPUIndex]); 
-                    activeRequests.push_back(waitingRequests[requestIndex]);
-                    waitingRequests.erase(waitingRequests.begin() + requestIndex); 
-                    }  
-            }
-            for(auto request = activeRequests.begin(); request != activeRequests.end();)
-            {
-                (*request)->act( gpus[(*request)->getChoosenGPU()]);
-                if((*request)->finished())
-                {
-                    (*request)->deallocateMemory(gpus[(*request)->getChoosenGPU()]);
-                    request = activeRequests.erase(request);
                 }
-                else
-                    ++request;
             }
+            if (theGPUIndex == -1)
+                waitingRequests.erase(waitingRequests.begin() + requestIndex);
+            else
+            {
+                waitingRequests[requestIndex]->setChoosenGPU(theGPUIndex);
+                for (gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
+                {
+                    if (gpu[gpuIndex].findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
+                                                         waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens()).matchedTokens > theprefix.matchedTokens)
+                    {   
+                        theprefix = gpu[gpuIndex].findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
+                                                                          waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
+                        gpus[theGPUIndex].copyMemoryFromOtherGPU(gpus[gpuIndex], theprefix.blockIds);
+                    }
+                }
+                waitingRequests[requestIndex]->reserveMemory(gpus[theGPUIndex]);
+                activeRequests.push_back(waitingRequests[requestIndex]);
+                waitingRequests.erase(waitingRequests.begin() + requestIndex);
+            }
+            
+        }
+    }
+    for (auto request = activeRequests.begin(); request != activeRequests.end();)
+    {
+        (*request)->act(gpus[(*request)->getChoosenGPU()]);
+        if ((*request)->finished())
+        {
+            (*request)->deallocateMemory(gpus[(*request)->getChoosenGPU()]);
+            request = activeRequests.erase(request);
+        }
+        else
+            ++request;
+    }
 
-        return true;
-}
+    return true;
 }
 Server::Server(string configPath)
     : gpus(), models(), nonSubmittedRequests(), waitingRequests(), activeRequests(), policy(nullptr), currentCycle(0)
@@ -218,11 +229,11 @@ Server::Server(string configPath)
         }
         if (requestConfig.type == RequestType::Generative)
         {
-            nonSubmittedRequests.push_back(new GenerativeRequest(requestConfig.id, model, requestConfig.admissionCycle, requestConfig.prompt, requestConfig.scriptedOutput, requestConfig.maxOutputTokens));
+            nonSubmittedRequests.push_back(new GenerativeRequest(requestConfig.id, *model, requestConfig.admissionCycle, requestConfig.prompt, requestConfig.scriptedOutput, requestConfig.maxOutputTokens));
         }
         else if (requestConfig.type == RequestType::TextEmbedder)
         {
-            nonSubmittedRequests.push_back(new EmbeddingRequest(requestConfig.id, model, requestConfig.admissionCycle, requestConfig.prompt));
+            nonSubmittedRequests.push_back(new EmbeddingRequest(requestConfig.id, *model, requestConfig.admissionCycle, requestConfig.prompt));
         }
     }
 }
@@ -248,8 +259,8 @@ void Server::clear()
     delete policy;
 }
 Server::Server(const Server &other)
-    : gpus(other.gpus), models(other.models), nonSubmittedRequests(), 
-    waitingRequests(), activeRequests(), policy(other.policy->clone())
+    : gpus(other.gpus), models(other.models), nonSubmittedRequests(),
+      waitingRequests(), activeRequests(), policy(other.policy->clone())
 {
 
     for (const auto &request : other.nonSubmittedRequests)
@@ -293,8 +304,8 @@ Server &Server::operator=(const Server &other)
 
 Server::Server(Server &&other) noexcept
     : gpus(std::move(other.gpus)), models(std::move(other.models)),
-     nonSubmittedRequests(std::move(other.nonSubmittedRequests)),
-      waitingRequests(std::move(other.waitingRequests)), activeRequests(std::move(other.activeRequests)), 
+      nonSubmittedRequests(std::move(other.nonSubmittedRequests)),
+      waitingRequests(std::move(other.waitingRequests)), activeRequests(std::move(other.activeRequests)),
       policy(other.policy)
 {
     other.policy = nullptr;
