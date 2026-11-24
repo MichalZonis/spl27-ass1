@@ -1,6 +1,12 @@
 #ifndef SCHEDULING_POLICY_H_
 #define SCHEDULING_POLICY_H
 
+#include <vector>
+#include "Request.h"
+#include "GPU.h"
+#include <cstddef>
+#include "Model.h"
+
 class SchedulingPolicy {
 public:
     virtual ~SchedulingPolicy() = default;

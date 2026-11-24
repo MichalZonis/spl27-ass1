@@ -217,7 +217,7 @@ Server::Server(string configPath)
     models.reserve(config.models.size());
     for (const auto &modelConfig : config.models)
     {
-        models.emplace_back(modelConfig.id, modelConfig.embeddingSize);
+        models.push_back(new Model(modelConfig.id, modelConfig.embeddingSize));
     }
     
     if (config.policy == "arrivalOrder")
