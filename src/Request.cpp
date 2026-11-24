@@ -16,18 +16,20 @@ EmbeddingRequest::EmbeddingRequest(int id, const Model &model, int admissionCycl
     : Request(id, model, admissionCycle, prompt)
 {
 }
-const Model &Request::getModel() const
+
+int Request::getAdmissionCycle() const
 {
-    return model;
+    return admissionCycle;
 }
 int Request::getId() const
 {
     return id;
 }
-int Request::getAdmissionCycle() const
+const Model& Request::getModel() const
 {
-    return admissionCycle;
+    return model;
 }
+
 bool EmbeddingRequest::finished() const
 {
     return processedTokens == tokens.size();
@@ -158,6 +160,7 @@ Request *EmbeddingRequest::clone(const Model &model) const
     newRequest->reservedBlocks = reservedBlocks;
     return newRequest;
 }
+
 
 GenerativeRequest::~GenerativeRequest()
 {
