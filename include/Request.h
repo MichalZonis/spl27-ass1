@@ -61,8 +61,10 @@ public:
 };
 
 class EmbeddingRequest: public Request{
+    private:
+    int runningSum;  
 public:
-    EmbeddingRequest(int id, const Model& model, int admissionCycle, std::string prompt);
+    EmbeddingRequest(int id, const Model& model, int admissionCycle, std::string prompt, int runningSum);
     ~EmbeddingRequest() override;
     std::size_t getNeededMemory(const GPU& gpu) const override;
      std::size_t getMaxNeededMemory() const override;
