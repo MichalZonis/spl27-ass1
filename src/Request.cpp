@@ -159,11 +159,6 @@ Request *EmbeddingRequest::clone(const Model &model) const
     return newRequest;
 }
 
-const Model &Request::getModel() const
-{
-    return model;
-}
-
 GenerativeRequest::~GenerativeRequest()
 {
 }
@@ -171,3 +166,5 @@ GenerativeRequest::~GenerativeRequest()
 EmbeddingRequest::~EmbeddingRequest()
 {
 }
+
+Request::~Request() {}
