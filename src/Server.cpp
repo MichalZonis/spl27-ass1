@@ -162,6 +162,7 @@ bool Server::step()
             {
                 std:cout<< "rejected " <<waitingRequests[requestIndex]->getId()
                 <<" cycle="<< currentCycle << std::endl;
+                delete waitingRequests[requestIndex];
                 waitingRequests.erase(waitingRequests.begin() + requestIndex);
                 
             }
@@ -195,6 +196,7 @@ bool Server::step()
                 <<" cycle="<< currentCycle << 
                 " gpu=" <<(*request)->getChoosenGPU() <<
                 ": "<< (*request)->getOutput()<< std::endl;
+                delete *request;
             request = activeRequests.erase(request);
         }
         else
@@ -277,6 +279,7 @@ void Server::clear()
         delete request;
     }
     delete policy;
+    for(auto model:)
 }
 Server::Server(const Server &other)
     : gpus(other.gpus), models(other.models), nonSubmittedRequests(),

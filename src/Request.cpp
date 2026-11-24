@@ -16,14 +16,7 @@ EmbeddingRequest::EmbeddingRequest(int id, const Model &model, int admissionCycl
     : Request(id, model, admissionCycle, prompt)
 {
 }
-const Model &Request::getModel() const
-{
-    return model;
-}
-int Request::getId() const
-{
-    return id;
-}
+
 int Request::getAdmissionCycle() const
 {
     return admissionCycle;
