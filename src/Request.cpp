@@ -36,14 +36,14 @@ bool GenerativeRequest::finished() const
 {
    return processedTokens ==tokens.size() ;
 }
-void GenerativeRequest::act(GPU &gpu) 
+void GenerativeRequest::act(GPU &gpu)
 {
-       if (finished())
+    if (finished())
         return;
     std::size_t slot;
 
-    if(!memoryBlocks.empty())
-     slot = memoryBlocks.back();
+    if (!memoryBlocks.empty())
+        slot = memoryBlocks.back();
 
     std::size_t t = processedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
     if (t == 0)
@@ -58,7 +58,7 @@ void GenerativeRequest::act(GPU &gpu)
     if(t==0)
     gpu.assignPrefixToBlock(slot,tokens,model.getId());
 }
-void EmbeddingRequest::act(GPU &gpu) 
+void EmbeddingRequest::act(GPU &gpu)
 {
     if (finished())
         return;
@@ -158,21 +158,13 @@ Request *EmbeddingRequest::clone(const Model &model) const
     newRequest->reservedBlocks = reservedBlocks;
     return newRequest;
 }
-int Request::getId() const
-{
-    return id;
-}
-const Model &Request::getModel() const
-{
-    return model;
-}
-int Request::getAdmissionCycle() const
-{
-    return admissionCycle;
-}
+
 GenerativeRequest::~GenerativeRequest()
 {
 }
+
 EmbeddingRequest::~EmbeddingRequest()
 {
 }
+
+Request::~Request() {}

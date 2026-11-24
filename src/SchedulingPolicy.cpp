@@ -1,9 +1,4 @@
 #include "SchedulingPolicy.h"
-#include "Request.h"
-#include "GPU.h"
-#include <cstddef>
-#include <vector>
-#include "Model.h"
 
 std::vector<int> ArrivalOrderPolicy::choose(const std::vector<const Request*>& eligible,
                                             const std::vector<GPU>& gpus) const
