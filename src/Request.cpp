@@ -21,6 +21,15 @@ int Request::getAdmissionCycle() const
 {
     return admissionCycle;
 }
+int Request::getId() const
+{
+    return id;
+}
+const Model& Request::getModel() const
+{
+    return model;
+}
+
 bool EmbeddingRequest::finished() const
 {
     return processedTokens == tokens.size();
@@ -151,6 +160,7 @@ Request *EmbeddingRequest::clone(const Model &model) const
     newRequest->reservedBlocks = reservedBlocks;
     return newRequest;
 }
+
 
 GenerativeRequest::~GenerativeRequest()
 {

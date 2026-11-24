@@ -302,7 +302,7 @@ void Server::clear()
 }
 Server::Server(const Server &other)
     : gpus(other.gpus), models(other.models), nonSubmittedRequests(),
-      waitingRequests(), activeRequests(), policy(other.policy->clone())
+      waitingRequests(), activeRequests(), policy(other.policy->clone()),currentCycle(other.currentCycle)
 {
 
     for (const auto &request : other.nonSubmittedRequests)
@@ -327,7 +327,7 @@ Server &Server::operator=(const Server &other)
         gpus = other.gpus;
         models = other.models;
         policy = other.policy->clone();
-
+        currentCycle=other.currentCycle;
         for (const auto &request : other.nonSubmittedRequests)
         {
             nonSubmittedRequests.push_back(request->clone(request->getModel()));
@@ -348,7 +348,7 @@ Server::Server(Server &&other) noexcept
     : gpus(std::move(other.gpus)), models(std::move(other.models)),
       nonSubmittedRequests(std::move(other.nonSubmittedRequests)),
       waitingRequests(std::move(other.waitingRequests)), activeRequests(std::move(other.activeRequests)),
-      policy(other.policy)
+      policy(other.policy),currentCycle(other.currentCycle)
 {
     other.policy = nullptr;
 }
@@ -365,6 +365,7 @@ Server &Server::operator=(Server &&other) noexcept
         activeRequests = std::move(other.activeRequests);
         policy = other.policy;
         other.policy = nullptr;
+        currentCycle=other.currentCycle;
     }
     return *this;
 }
