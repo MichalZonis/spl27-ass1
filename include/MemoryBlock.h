@@ -52,6 +52,7 @@ public:
     virtual MemoryBlock *clone() const;
     ~EmbeddingWorkspace();
     EmbeddingWorkspace(const EmbeddingWorkspace &other);
+    EmbeddingWorkspace &operator=(const EmbeddingWorkspace &other);
 };
 
 #endif
