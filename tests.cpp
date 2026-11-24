@@ -13,41 +13,49 @@
 #include "SchedulingPolicy.h"
 #include "Server.h"
 
-// Lightweight test assertion macro
-#define ASSERT_TRUE(cond)                                                          \
-    do {                                                                           \
-        if (!(cond)) {                                                             \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__                  \
-                      << " (" << #cond << ")\n";                                   \
-            std::exit(1);                                                          \
-        }                                                                          \
+static int g_failedTests = 0;
+
+#define ASSERT_TRUE(cond)                                         \
+    do                                                            \
+    {                                                             \
+        if (!(cond))                                              \
+        {                                                         \
+            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ \
+                      << " Expected " << #cond << std::endl;      \
+            ++g_failedTests;                                      \
+        }                                                         \
     } while (0)
 
-#define ASSERT_EQ(a, b)                                                            \
-    do {                                                                           \
-        if (!((a) == (b))) {                                                       \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__                  \
-                      << " Expected " << #a << " == " << #b << "\n";               \
-            std::exit(1);                                                          \
-        }                                                                          \
+#define ASSERT_EQ(a, b)                                                   \
+    do                                                                    \
+    {                                                                     \
+        if (!((a) == (b)))                                                \
+        {                                                                 \
+            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__         \
+                      << " Expected " << #a << " == " << #b << std::endl; \
+            ++g_failedTests;                                              \
+        }                                                                 \
     } while (0)
 
 // Helper to capture std::cout during Server::serve() / step()
-class CoutCapture {
+class CoutCapture
+{
     std::ostringstream buffer;
-    std::streambuf* oldBuf;
+    std::streambuf *oldBuf;
+
 public:
     CoutCapture() : buffer(), oldBuf(std::cout.rdbuf(buffer.rdbuf())) {}
     ~CoutCapture() { std::cout.rdbuf(oldBuf); }
-    CoutCapture(const CoutCapture&) = delete;
-    CoutCapture& operator=(const CoutCapture&) = delete;
+    CoutCapture(const CoutCapture &) = delete;
+    CoutCapture &operator=(const CoutCapture &) = delete;
     std::string str() const { return buffer.str(); }
 };
 
 // ============================================================================
 // 1. Model Tests
 // ============================================================================
-void testModel() {
+void testModel()
+{
     std::cout << "Running testModel...\n";
     Model m("llama", 4);
 
@@ -74,7 +82,8 @@ void testModel() {
     std::vector<std::string> seq = {"the"};
     m.generateTokenEmbedding(seq, gpu, s0, 0);
     m.generateTokenEmbedding(seq, gpu, s1, 0);
-    for (std::size_t i = 0; i < 4; ++i) {
+    for (std::size_t i = 0; i < 4; ++i)
+    {
         ASSERT_EQ(gpu.readFromBlock(s0, i), gpu.readFromBlock(s1, i));
     }
 
@@ -86,12 +95,14 @@ void testModel() {
 // ============================================================================
 // 2. MemoryBlock, KVBlock, EmbeddingWorkspace & Rule of 5 Tests
 // ============================================================================
-void testMemoryBlocks() {
+void testMemoryBlocks()
+{
     std::cout << "Running testMemoryBlocks...\n";
 
     // Zero initialization & read/write
     KVBlock kv(4);
-    for (std::size_t i = 0; i < 4; ++i) {
+    for (std::size_t i = 0; i < 4; ++i)
+    {
         ASSERT_EQ(kv.readFromBlock(i), 0);
     }
     kv.writeToBlock(2, 42);
@@ -126,15 +137,15 @@ void testMemoryBlocks() {
     ASSERT_EQ(kvAssigned.readFromBlock(2), 77);
 
     // Polymorphic clone() preserves concrete type and deep-copies data
-    MemoryBlock* basePtr = &kv;
-    MemoryBlock* clonedKV = basePtr->clone();
+    MemoryBlock *basePtr = &kv;
+    MemoryBlock *clonedKV = basePtr->clone();
     ASSERT_EQ(clonedKV->readFromBlock(2), 42);
     ASSERT_EQ(clonedKV->onLastRelease(), IdleAction::KeepCached);
     clonedKV->writeToBlock(2, -1);
     ASSERT_EQ(kv.readFromBlock(2), 42);
     delete clonedKV; // Tests virtual destructor
 
-    MemoryBlock* clonedEW = ew.clone();
+    MemoryBlock *clonedEW = ew.clone();
     ASSERT_EQ(clonedEW->onLastRelease(), IdleAction::Destroy);
     delete clonedEW;
 
@@ -153,7 +164,8 @@ void testMemoryBlocks() {
 // ============================================================================
 // 3. GPU, Prefix Caching, Eviction, Cross-GPU Copy & Rule of 5 Tests
 // ============================================================================
-void testGPU() {
+void testGPU()
+{
     std::cout << "Running testGPU...\n";
     Model llama("llama", 2);
     Model otherModel("mistral", 2);
@@ -208,7 +220,7 @@ void testGPU() {
     ASSERT_EQ(s2, static_cast<std::size_t>(2));
     gpu.acquire(s2);
     gpu.assignPrefixToBlock(s2, {"a", "b"}, "llama"); // duplicate!
-    gpu.release(s2); // no prefix key => deleted immediately (slot 2 becomes empty)
+    gpu.release(s2);                                  // no prefix key => deleted immediately (slot 2 becomes empty)
     ASSERT_EQ(gpu.availableSlots(), static_cast<std::size_t>(1));
 
     // Release s0 and s1 => both become idle (cached), availableSlots returns to 3
@@ -260,7 +272,8 @@ void testGPU() {
 // ============================================================================
 // 4. Request (GenerativeRequest & EmbeddingRequest) Tests
 // ============================================================================
-void testRequests() {
+void testRequests()
+{
     std::cout << "Running testRequests...\n";
     Model llama("llama", 2);
     Model e5("e5", 2);
@@ -282,7 +295,8 @@ void testRequests() {
 
     // Run until finished: 3 prompt + 2 scripted output = 5 acts
     int acts = 0;
-    while (!g1.finished()) {
+    while (!g1.finished())
+    {
         g1.act(gpu);
         ++acts;
     }
@@ -305,7 +319,7 @@ void testRequests() {
 
     // Clone test: points to new model instance
     Model llamaCopy("llama", 2);
-    Request* g2Clone = g2.clone(llamaCopy);
+    Request *g2Clone = g2.clone(llamaCopy);
     ASSERT_EQ(g2Clone->getId(), 11);
     ASSERT_TRUE(&g2Clone->getModel() == &llamaCopy);
     delete g2Clone;
@@ -321,7 +335,8 @@ void testRequests() {
     ASSERT_EQ(emb.getNeedToUnreserve(), static_cast<std::size_t>(0)); // workspace allocated immediately
 
     int embActs = 0;
-    while (!emb.finished()) {
+    while (!emb.finished())
+    {
         emb.act(gpu);
         ++embActs;
     }
@@ -338,7 +353,8 @@ void testRequests() {
 // ============================================================================
 // 5. SchedulingPolicy Tests (Exact Example from Assignment Section 4.4.6)
 // ============================================================================
-void testSchedulingPolicies() {
+void testSchedulingPolicies()
+{
     std::cout << "Running testSchedulingPolicies...\n";
     Model llama("llama", 4);
     Model e5("e5", 4);
@@ -348,7 +364,8 @@ void testSchedulingPolicies() {
     // Populate GPU cache with "the", "the cat", "the cat sat"
     GenerativeRequest seed(0, llama, 0, "the cat sat", "", 0);
     seed.reserveMemory(gpu);
-    while (!seed.finished()) {
+    while (!seed.finished())
+    {
         seed.act(gpu);
     }
     seed.deallocateMemory(gpu);
@@ -356,12 +373,12 @@ void testSchedulingPolicies() {
     std::vector<GPU> gpus;
     gpus.push_back(gpu);
 
-    GenerativeRequest r3(3, llama, 0, "a dog", "", 3);             // blocks=5, h=0
-    EmbeddingRequest  r4(4, e5,    1, "hi");                       // blocks=2, h=0
-    GenerativeRequest r5(5, llama, 2, "the cat ran", "", 1);       // blocks=4, h=2
-    GenerativeRequest r6(6, llama, 3, "the cat sat down", "", 4);  // blocks=8, h=3
+    GenerativeRequest r3(3, llama, 0, "a dog", "", 3);            // blocks=5, h=0
+    EmbeddingRequest r4(4, e5, 1, "hi");                          // blocks=2, h=0
+    GenerativeRequest r5(5, llama, 2, "the cat ran", "", 1);      // blocks=4, h=2
+    GenerativeRequest r6(6, llama, 3, "the cat sat down", "", 4); // blocks=8, h=3
 
-    std::vector<const Request*> eligible = {&r3, &r4, &r5, &r6};
+    std::vector<const Request *> eligible = {&r3, &r4, &r5, &r6};
 
     ArrivalOrderPolicy arrival;
     ShortestJobPolicy shortest;
@@ -380,7 +397,7 @@ void testSchedulingPolicies() {
     ASSERT_EQ(ordLongest, expLongest);
 
     // clone() test
-    SchedulingPolicy* clonedPolicy = longest.clone();
+    SchedulingPolicy *clonedPolicy = longest.clone();
     ASSERT_EQ(clonedPolicy->choose(eligible, gpus), expLongest);
     delete clonedPolicy;
 
@@ -390,7 +407,8 @@ void testSchedulingPolicies() {
 // ============================================================================
 // 6. Server End-to-End, Rejection, Cross-GPU Copy & Mid-Run Rule of 5 Tests
 // ============================================================================
-void testServerAndRuleOf5() {
+void testServerAndRuleOf5()
+{
     std::cout << "Running testServerAndRuleOf5...\n";
 
     const std::string cfgPath = "/tmp/spl_unit_test_config.json";
@@ -502,13 +520,25 @@ void testServerAndRuleOf5() {
     std::cout << "  [PASS] testServerAndRuleOf5\n";
 }
 
-int main() {
+int main()
+{
     testModel();
     testMemoryBlocks();
     testGPU();
     testRequests();
     testSchedulingPolicies();
     testServerAndRuleOf5();
-    std::cout << "\nALL UNIT TESTS PASSED!\n";
-    return 0;
+    // std::cout << "\nALL UNIT TESTS PASSED!\n";
+    if (g_failedTests == 0)
+    {
+        std::cout << "\nALL TESTS PASSED!" << std::endl;
+        return 0;
+    }
+    else
+    {
+        std::cerr << "\n"
+                  << g_failedTests << " ASSERTION(S) FAILED." << std::endl;
+        return 1;
+    }
+    // return 0;
 }
