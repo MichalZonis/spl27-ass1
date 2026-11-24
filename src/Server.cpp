@@ -70,17 +70,28 @@ Config Server::readConfig(string configPath) const
 
 void Server::serve()
 {
-    int cycle = 0;
     while (step())
     {
         currentCycle++;
     }
-
+    //TODO: erase before submission
     std::cout << "Active requests: " << activeRequests.size()
               << "Waiting requests: " << waitingRequests.size()
               << "Non-submitted requests: " << nonSubmittedRequests.size()
               << "Cycles: " << currentCycle
               << std::endl;
+    
+    int cacheHits=0;
+    int evictions=0;
+    for (int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
+    {
+        cacheHits +=gpus[gpuIndex].getCacheHits();
+        evictions +=gpus[gpuIndex].getEvictions(); 
+    }
+    std::cout<<"summary: cycles="<< currentCycle
+    <<" cache_hits="<< cacheHits
+    <<" evictions="<<evictions
+    << std::endl;
 }
 bool Server::step()
 {
@@ -148,7 +159,12 @@ bool Server::step()
                 }
             }
             if (theGPUIndex == -1)
+            {
+                std:cout<< "rejected " <<waitingRequests[requestIndex]->getId()
+                <<" cycle="<< currentCycle << std::endl;
                 waitingRequests.erase(waitingRequests.begin() + requestIndex);
+                
+            }
             else
             {
                 waitingRequests[requestIndex]->setChoosenGPU(theGPUIndex);
@@ -175,6 +191,10 @@ bool Server::step()
         if ((*request)->finished())
         {
             (*request)->deallocateMemory(gpus[(*request)->getChoosenGPU()]);
+            std:cout<< "finished " <<(*request)->getId()
+                <<" cycle="<< currentCycle << 
+                " gpu=" <<(*request)->getChoosenGPU() <<
+                ": "<< (*request)->getOutput()<< std::endl;
             request = activeRequests.erase(request);
         }
         else
@@ -197,7 +217,7 @@ Server::Server(string configPath)
     {
         models.push_back(new Model(modelConfig.id, modelConfig.embeddingSize));
     }
-    // return here after complting policy
+    
     if (config.policy == "arrivalOrder")
     {
         policy = new ArrivalOrderPolicy();

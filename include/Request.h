@@ -16,7 +16,7 @@ protected:
     std::vector<std::size_t> memoryBlocks;
     std::size_t reservedBlocks;
     int theChoosenGPU;
-    int prossedTokens;
+    int processedTokens;
 public:
     Request(int id, const Model& model, int admissionCycle, std::string prompt);
     virtual std::size_t getNeededMemory(const GPU& gpu) const=0;

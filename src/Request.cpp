@@ -4,7 +4,7 @@
 
 Request::Request(int id, const Model &model, int admissionCycle, std::string prompt)
     : id(id), model(model), admissionCycle(admissionCycle), tokens(model.tokenizer(prompt)),
-      reservedBlocks(0), theChoosenGPU(-1), prossedTokens(0)
+      reservedBlocks(0), theChoosenGPU(-1), processedTokens(0)
 {
 }
 GenerativeRequest::GenerativeRequest(int id, const Model &model, int admissionCycle, std::string prompt, std::string scriptedOutput,
@@ -30,11 +30,11 @@ int Request::getAdmissionCycle() const
 }
 bool EmbeddingRequest::finished() const
 {
-    return prossedTokens == tokens.size();
+    return processedTokens == tokens.size();
 }
 bool GenerativeRequest::finished() const
 {
-    return prossedTokens == tokens.size();
+   return processedTokens ==tokens.size() ;
 }
 void GenerativeRequest::act(GPU &gpu)
 {
@@ -45,7 +45,7 @@ void GenerativeRequest::act(GPU &gpu)
     if (!memoryBlocks.empty())
         slot = memoryBlocks.back();
 
-    std::size_t t = prossedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
+    std::size_t t = processedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
     if (t == 0)
     {
         slot = gpu.allocateBlock(*this);
@@ -53,17 +53,17 @@ void GenerativeRequest::act(GPU &gpu)
         reservedBlocks--;
     }
     model.generateTokenEmbedding(tokens, gpu, slot, t / model.getEmbeddingSize());
-    prossedTokens++;
-    t = prossedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
-    if (t == 0)
-        gpu.assignPrefixToBlock(slot, tokens, model.getId());
+    processedTokens++;
+    t = processedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
+    if(t==0)
+    gpu.assignPrefixToBlock(slot,tokens,model.getId());
 }
 void EmbeddingRequest::act(GPU &gpu)
 {
     if (finished())
         return;
     std::size_t slot = memoryBlocks.back();
-    std::size_t t = prossedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
+    std::size_t t = processedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
     if (t == 0)
     {
         slot = gpu.allocateBlock(*this);
@@ -71,7 +71,7 @@ void EmbeddingRequest::act(GPU &gpu)
         reservedBlocks--;
     }
     model.generateTokenEmbedding(tokens, gpu, slot, t / model.getEmbeddingSize());
-    prossedTokens++;
+    processedTokens++;
 }
 void GenerativeRequest::reserveMemory(GPU &gpu)
 {
