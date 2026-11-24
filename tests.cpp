@@ -15,26 +15,94 @@
 
 static int g_failedTests = 0;
 
+// Helpers to format values for clear Expected vs. Actual output
+template <typename T>
+std::string toStr(const T &val)
+{
+    std::ostringstream oss;
+    oss << val;
+    return oss.str();
+}
+
+inline std::string toStr(const std::string &val)
+{
+    return "\"" + val + "\"";
+}
+
+inline std::string toStr(const char *val)
+{
+    return std::string("\"") + (val ? val : "nullptr") + "\"";
+}
+
+inline std::string toStr(IdleAction action)
+{
+    switch (action)
+    {
+    case IdleAction::KeepCached:
+        return "IdleAction::KeepCached";
+    case IdleAction::Destroy:
+        return "IdleAction::Destroy";
+    default:
+        return "IdleAction(" + std::to_string(static_cast<int>(action)) + ")";
+    }
+}
+
+template <typename T>
+std::string toStr(const std::vector<T> &vec)
+{
+    std::ostringstream oss;
+    oss << "[";
+    for (std::size_t i = 0; i < vec.size(); ++i)
+    {
+        if (i > 0)
+            oss << ", ";
+        oss << toStr(vec[i]);
+    }
+    oss << "]";
+    return oss.str();
+}
+
 #define ASSERT_TRUE(cond)                                         \
     do                                                            \
     {                                                             \
-        if (!(cond))                                              \
+        bool _res = static_cast<bool>(cond);                      \
+        if (!_res)                                                \
         {                                                         \
             std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__ \
-                      << " Expected " << #cond << std::endl;      \
+                      << "\n  Condition: " << #cond               \
+                      << "\n  Expected:  true"                    \
+                      << "\n  Actual:    false" << std::endl;     \
             ++g_failedTests;                                      \
         }                                                         \
     } while (0)
 
-#define ASSERT_EQ(a, b)                                                   \
-    do                                                                    \
-    {                                                                     \
-        if (!((a) == (b)))                                                \
-        {                                                                 \
-            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__         \
-                      << " Expected " << #a << " == " << #b << std::endl; \
-            ++g_failedTests;                                              \
-        }                                                                 \
+#define ASSERT_EQ(actual, expected)                                         \
+    do                                                                      \
+    {                                                                       \
+        auto _actual = (actual);                                            \
+        auto _expected = (expected);                                        \
+        if (!(_actual == _expected))                                        \
+        {                                                                   \
+            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__           \
+                      << "\n  Expression: " << #actual                      \
+                      << "\n  Expected:   " << toStr(_expected)             \
+                      << "\n  Actual:     " << toStr(_actual) << std::endl; \
+            ++g_failedTests;                                                \
+        }                                                                   \
+    } while (0)
+
+#define ASSERT_CONTAINS(haystack, needle)                                   \
+    do                                                                      \
+    {                                                                       \
+        std::string _h = (haystack);                                        \
+        std::string _n = (needle);                                          \
+        if (_h.find(_n) == std::string::npos)                               \
+        {                                                                   \
+            std::cerr << "[FAIL] " << __FILE__ << ":" << __LINE__           \
+                      << "\n  Expected output to contain: " << toStr(_n)    \
+                      << "\n  Actual output:\n" << _h << std::endl;         \
+            ++g_failedTests;                                                \
+        }                                                                   \
     } while (0)
 
 // Helper to capture std::cout during Server::serve() / step()
@@ -89,7 +157,7 @@ void testModel()
 
     gpu.release(s0);
     gpu.release(s1);
-    std::cout << "  [PASS] testModel\n";
+    std::cout << "  [DONE] testModel\n";
 }
 
 // ============================================================================
@@ -158,7 +226,7 @@ void testMemoryBlocks()
     ASSERT_EQ(kvMoveAssigned.readFromBlock(2), 99);
 
     kv.release();
-    std::cout << "  [PASS] testMemoryBlocks\n";
+    std::cout << "  [DONE] testMemoryBlocks\n";
 }
 
 // ============================================================================
@@ -241,7 +309,7 @@ void testGPU()
     ASSERT_EQ(gpu2.availableSlots(), static_cast<std::size_t>(3));
 
     // Eviction order: fill slot 2 first, then next allocation evicts lowest idle slot (0)
-    EmbeddingRequest e1(3, llama, 0, "hi");
+    EmbeddingRequest e1(3, llama, 0, "hi", 0);
     gpu.reserve(2, e1);
     std::size_t es0 = gpu.allocateBlock(e1);
     ASSERT_EQ(es0, static_cast<std::size_t>(2)); // empty slot first!
@@ -266,7 +334,7 @@ void testGPU()
     GPU gpuMoved(std::move(gpuCopy));
     ASSERT_EQ(gpuMoved.availableSlots(), static_cast<std::size_t>(1));
 
-    std::cout << "  [PASS] testGPU\n";
+    std::cout << "  [DONE] testGPU\n";
 }
 
 // ============================================================================
@@ -326,7 +394,7 @@ void testRequests()
 
     // --- EmbeddingRequest ---
     // Needs 2 * embeddingSize = 4 ints => 1 block regardless of prompt length
-    EmbeddingRequest emb(20, e5, 0, "hello world test");
+    EmbeddingRequest emb(20, e5, 0, "hello world test", 0);
     ASSERT_EQ(emb.getMaxNeededMemory(), static_cast<std::size_t>(4));
     ASSERT_EQ(emb.getNeededMemory(gpu), static_cast<std::size_t>(4));
     ASSERT_TRUE(emb.getCacheableTokens().empty());
@@ -347,7 +415,7 @@ void testRequests()
     emb.deallocateMemory(gpu);
     ASSERT_EQ(gpu.availableSlots(), static_cast<std::size_t>(4));
 
-    std::cout << "  [PASS] testRequests\n";
+    std::cout << "  [DONE] testRequests\n";
 }
 
 // ============================================================================
@@ -374,7 +442,7 @@ void testSchedulingPolicies()
     gpus.push_back(gpu);
 
     GenerativeRequest r3(3, llama, 0, "a dog", "", 3);            // blocks=5, h=0
-    EmbeddingRequest r4(4, e5, 1, "hi");                          // blocks=2, h=0
+    EmbeddingRequest r4(4, e5, 1, "hi", 0);                       // blocks=2, h=0
     GenerativeRequest r5(5, llama, 2, "the cat ran", "", 1);      // blocks=4, h=2
     GenerativeRequest r6(6, llama, 3, "the cat sat down", "", 4); // blocks=8, h=3
 
@@ -401,7 +469,7 @@ void testSchedulingPolicies()
     ASSERT_EQ(clonedPolicy->choose(eligible, gpus), expLongest);
     delete clonedPolicy;
 
-    std::cout << "  [PASS] testSchedulingPolicies\n";
+    std::cout << "  [DONE] testSchedulingPolicies\n";
 }
 
 // ============================================================================
@@ -474,7 +542,7 @@ void testServerAndRuleOf5()
         ASSERT_TRUE(original.step()); // cycle 1 (request 4 admitted & acts)
         prefixOut = cap.str();
     }
-    ASSERT_TRUE(prefixOut.find("rejected 2 cycle=0") != std::string::npos);
+    ASSERT_CONTAINS(prefixOut, "rejected 2 cycle=0");
 
     // Copy server right in the middle of execution
     Server copied(original);
@@ -492,10 +560,10 @@ void testServerAndRuleOf5()
     }
     // Both must produce identical output independently
     ASSERT_EQ(origRest, copyRest);
-    ASSERT_TRUE(origRest.find("finished 1") != std::string::npos);
-    ASSERT_TRUE(origRest.find("finished 3") != std::string::npos);
-    ASSERT_TRUE(origRest.find("finished 4") != std::string::npos);
-    ASSERT_TRUE(origRest.find("summary:") != std::string::npos);
+    ASSERT_CONTAINS(origRest, "finished 1");
+    ASSERT_CONTAINS(origRest, "finished 3");
+    ASSERT_CONTAINS(origRest, "finished 4");
+    ASSERT_CONTAINS(origRest, "summary:");
 
     // --- Move Semantics Test ---
     Server src(cfgPath);
@@ -513,11 +581,11 @@ void testServerAndRuleOf5()
     {
         CoutCapture cap;
         dst.serve();
-        ASSERT_TRUE(cap.str().find("summary:") != std::string::npos);
+        ASSERT_CONTAINS(cap.str(), "summary:");
     }
 
     std::remove(cfgPath.c_str());
-    std::cout << "  [PASS] testServerAndRuleOf5\n";
+    std::cout << "  [DONE] testServerAndRuleOf5\n";
 }
 
 int main()
@@ -528,7 +596,6 @@ int main()
     testRequests();
     testSchedulingPolicies();
     testServerAndRuleOf5();
-    // std::cout << "\nALL UNIT TESTS PASSED!\n";
     if (g_failedTests == 0)
     {
         std::cout << "\nALL TESTS PASSED!" << std::endl;
@@ -540,5 +607,4 @@ int main()
                   << g_failedTests << " ASSERTION(S) FAILED." << std::endl;
         return 1;
     }
-    // return 0;
 }
