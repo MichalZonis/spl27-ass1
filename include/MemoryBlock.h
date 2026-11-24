@@ -51,6 +51,7 @@ public:
     virtual IdleAction onLastRelease() const;
     virtual MemoryBlock *clone() const;
     ~EmbeddingWorkspace();
+    EmbeddingWorkspace(const EmbeddingWorkspace &other);
 };
 
 #endif
