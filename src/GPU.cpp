@@ -7,11 +7,12 @@ GPU::GPU(std::size_t blocksNum, std::size_t blockSize)
     : blocksNum(blocksNum),
       blockSize(blockSize),
       memory(blocksNum, nullptr),
-      cachedPrefixes(blocksNum, nullptr),
-      cachedModelIds(blocksNum, ""),
-      evictionCounter(0),
       activeBlocksCounter(0),
       reservedBlocksCounter(0),
+      cachedPrefixes(blocksNum, nullptr),
+      cachedModelIds(blocksNum, ""),
+      requestsReservations(),
+      evictionCounter(0),
       cacheHits(0)
 {
 }
@@ -20,11 +21,12 @@ GPU::GPU(const GPU &other)
     : blocksNum(other.blocksNum),
       blockSize(other.blockSize),
       memory(other.blocksNum, nullptr),
-      cachedPrefixes(other.blocksNum, nullptr),
-      cachedModelIds(other.blocksNum, ""),
-      evictionCounter(other.evictionCounter),
       activeBlocksCounter(other.activeBlocksCounter),
       reservedBlocksCounter(other.reservedBlocksCounter),
+      cachedPrefixes(other.blocksNum, nullptr),
+      cachedModelIds(other.blocksNum, ""),
+      requestsReservations(other.requestsReservations),
+      evictionCounter(other.evictionCounter),
       cacheHits(other.cacheHits)
 {
 
@@ -50,11 +52,12 @@ GPU::GPU(GPU &&other)
     : blocksNum(other.blocksNum),
       blockSize(other.blockSize),
       memory(other.blocksNum, nullptr),
-      cachedPrefixes(other.blocksNum, nullptr),
-      cachedModelIds(other.blocksNum, ""),
-      evictionCounter(other.evictionCounter),
       activeBlocksCounter(other.activeBlocksCounter),
       reservedBlocksCounter(other.reservedBlocksCounter),
+      cachedPrefixes(other.blocksNum, nullptr),
+      cachedModelIds(other.blocksNum, ""),
+      requestsReservations(std::move(other.requestsReservations)),
+      evictionCounter(other.evictionCounter),
       cacheHits(other.cacheHits)
 {
 
@@ -190,8 +193,8 @@ std::size_t GPU::findAvailableSlot(std::vector<std::size_t> &blocksToIgnore)
 void GPU::assignPrefixToBlock(std::size_t block,
                               const std::vector<std::string> &prefixTokens, const std::string &modelId)
 {
-    size_t exisitingBlock = -1;
-    for (auto i = 0; i < blocksNum; i++)
+    int exisitingBlock = -1;
+    for (size_t i = 0; i < blocksNum; i++)
     {
         if (cachedModelIds[i] == modelId && cachedPrefixes[i] != nullptr && *cachedPrefixes[i] == prefixTokens)
         {
@@ -339,7 +342,7 @@ GPU &GPU::operator=(GPU &&other)
     {
         return *this;
     }
-    
+
     clear();
     blocksNum = other.blocksNum;
     blockSize = other.blockSize;
@@ -386,6 +389,7 @@ GPU &GPU::operator=(const GPU &other)
     clear();
     blocksNum = other.blocksNum;
     blockSize = other.blockSize;
+    requestsReservations = other.requestsReservations;
     cachedModelIds.reserve(blocksNum);
     cachedModelIds.reserve(blocksNum);
     evictionCounter = other.evictionCounter;
