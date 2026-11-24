@@ -54,7 +54,7 @@ void GenerativeRequest::act(GPU &gpu)
         memoryBlocks.push_back(slot);
         reservedBlocks--;
     }
-    model.generateTokenEmbedding(tokens, gpu, slot, t / model.getEmbeddingSize());
+    model.generateTokenEmbedding(tokens, gpu, slot, t * model.getEmbeddingSize());
     processedTokens++;
     t = processedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
     if (t == 0)
@@ -122,7 +122,7 @@ std::size_t EmbeddingRequest::getMaxNeededMemory() const
 }
 std::size_t GenerativeRequest::getNeededMemory(const GPU &gpu) const
 {
-    return maxOutputTokens + tokens.size() - gpu.findLongestCachedPrefix(model.getId(), model.getEmbeddingSize(), tokens).matchedTokens;
+    return model.getEmbeddingSize() * (maxOutputTokens + tokens.size() - gpu.findLongestCachedPrefix(model.getId(), model.getEmbeddingSize(), tokens).matchedTokens);
 }
 std::size_t EmbeddingRequest::getNeededMemory(const GPU &gpu) const
 {
