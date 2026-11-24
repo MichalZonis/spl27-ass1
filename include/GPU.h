@@ -11,6 +11,8 @@ struct PrefixMatch
 {
     std::size_t matchedTokens;         // number of prompt tokens
     std::vector<std::size_t> blockIds; // the slots of the cached blocks of the model that cover the longest prefix of the prompt
+
+    PrefixMatch() : matchedTokens(0), blockIds() {}
 };
 
 class MemoryBlock;
@@ -51,7 +53,6 @@ private:
     std::size_t blockSize;
     std::vector<MemoryBlock *> memory;
     //--------
-    std::vector<std::size_t> reservedBlocks;
     std::size_t activeBlocksCounter;
     std::size_t reservedBlocksCounter;
     std::vector<std::vector<std::string> *> cachedPrefixes;
