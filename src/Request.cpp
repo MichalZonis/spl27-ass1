@@ -55,6 +55,8 @@ void GenerativeRequest::act(GPU &gpu)
         memoryBlocks.push_back(slot);
         reservedBlocks--;
     }
+
+    //TODO: currently doesnt process output tokens
     model.generateTokenEmbedding(tokens, gpu, slot, t * model.getEmbeddingSize());
     processedTokens++;
     t = processedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
