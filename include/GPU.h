@@ -40,7 +40,7 @@ public:
                                         const std::vector<std::string> &promptTokens) const;
     ~GPU();
     std::size_t findAvailableSlot();
-    std::size_t findAvailableSlot(std::vector<std::size_t> &blocksToIgnore);
+    std::size_t findAvailableSlot(const std::vector<std::size_t> &blocksToIgnore);
     std::size_t getBlockSize() const;
     void evict(std::size_t slot);
     std::size_t getEvictions() const;

@@ -141,23 +141,7 @@ void GPU::addMemoryBlock(const EmbeddingRequest &request, std::size_t slot)
 
 std::size_t GPU::findAvailableSlot()
 {
-
-    for (std::size_t i = 0; i < blocksNum; ++i)
-    {
-        if (memory[i] == nullptr)
-        {
-            return i;
-        }
-    }
-    for (std::size_t i = 0; i < blocksNum; ++i)
-    {
-        if (memory[i] != nullptr && memory[i]->getRefCount() == 0)
-        {
-            evict(i);
-            return i;
-        }
-    }
-    throw std::runtime_error("No available slots in GPU memory.");
+    findAvailableSlot({});
 }
 
 void GPU::evict(std::size_t slot)
@@ -168,7 +152,7 @@ void GPU::evict(std::size_t slot)
     cachedPrefixes[slot] = nullptr;
 }
 
-std::size_t GPU::findAvailableSlot(std::vector<std::size_t> &blocksToIgnore)
+std::size_t GPU::findAvailableSlot(const std::vector<std::size_t> &blocksToIgnore)
 {
 
     for (std::size_t i = 0; i < blocksNum; ++i)
@@ -183,7 +167,7 @@ std::size_t GPU::findAvailableSlot(std::vector<std::size_t> &blocksToIgnore)
         if (std::find(blocksToIgnore.begin(), blocksToIgnore.end(), i) == blocksToIgnore.end() &&
             memory[i] != nullptr && memory[i]->getRefCount() == 0)
         {
-            evictionCounter++;
+            evict(i);
             return i;
         }
     }
