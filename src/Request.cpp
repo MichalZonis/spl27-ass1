@@ -9,7 +9,7 @@ Request::Request(int id, const Model &model, int admissionCycle, std::string pro
 }
 GenerativeRequest::GenerativeRequest(int id, const Model &model, int admissionCycle, std::string prompt, std::string scriptedOutput,
                                      std::size_t maxOutputTokens)
-    : Request(id, model, admissionCycle, prompt + scriptedOutput), scriptedOutput(scriptedOutput), maxOutputTokens(maxOutputTokens)
+    : Request(id, model, admissionCycle, prompt), scriptedOutput(scriptedOutput), maxOutputTokens(maxOutputTokens)
 {
 }
 EmbeddingRequest::EmbeddingRequest(int id, const Model &model, int admissionCycle, std::string prompt, int runningSum)
