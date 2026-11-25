@@ -27,6 +27,12 @@ std::vector<std::string> Model::tokenizer(std::string text) const
         }
     }
 
+    if (!curr.empty())
+    {
+        tokens.push_back(curr);
+    }
+    return tokens;
+
     return tokens;
 }
 
