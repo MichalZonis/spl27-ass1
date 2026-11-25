@@ -141,7 +141,7 @@ void GPU::addMemoryBlock(const EmbeddingRequest &request, std::size_t slot)
 
 std::size_t GPU::findAvailableSlot()
 {
-    findAvailableSlot({});
+    return findAvailableSlot({});
 }
 
 void GPU::evict(std::size_t slot)
