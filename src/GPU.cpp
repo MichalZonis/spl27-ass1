@@ -203,7 +203,7 @@ void GPU::assignPrefixToBlock(std::size_t block,
         }
     }
 
-    if (exisitingBlock != -1)
+    if (exisitingBlock == -1)
     {
         cachedModelIds[block] = modelId;
         cachedPrefixes[block] = new std::vector<std::string>(prefixTokens);
