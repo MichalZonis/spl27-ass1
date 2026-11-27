@@ -148,8 +148,9 @@ void GPU::evict(std::size_t slot)
 {
     evictionCounter++;
     delete memory[slot];
-    cachedModelIds[slot] = "";
+    memory[slot] = nullptr;
     cachedPrefixes[slot] = nullptr;
+    cachedModelIds[slot] = "";
 }
 
 std::size_t GPU::findAvailableSlot(const std::vector<std::size_t> &blocksToIgnore)
@@ -216,7 +217,8 @@ PrefixMatch GPU::findLongestCachedPrefix(const std::string &modelId,
                 cachedPrefixes[i]->size() == targetLen)
             {
                 bool blockMatches = true;
-                // Check if the cached prefix matches the corresponding part of the prompt (and by extension, the already matched prefix)
+                // Check if the cached prefix matches the corresponding part of the prompt 
+                //(and by extension, the already matched prefix)
                 for (std::size_t j = 0; j < targetLen; j++)
                 {
                     if ((*cachedPrefixes[i])[j] != promptTokens[j])
@@ -441,8 +443,9 @@ void GPU::clear()
 
 std::size_t GPU::getBlockSize() const { return blockSize; }
 
-std::size_t GPU::countIdles(PrefixMatch prefix)
+std::size_t GPU::countIdles(PrefixMatch prefix) const
 {
+   // std::cout <<"" + prefix.blockIds << std::endl;
     std::size_t idleCounter(0);
     for (auto slot : prefix.blockIds)
     {
