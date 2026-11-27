@@ -440,3 +440,17 @@ void GPU::clear()
 }
 
 std::size_t GPU::getBlockSize() const { return blockSize; }
+
+std::size_t GPU::countIdles(PrefixMatch prefix)
+{
+    std::size_t idleCounter(0);
+    for (auto slot : prefix.blockIds)
+    {
+        if (memory[slot]->getRefCount() == 0)
+        {
+            idleCounter++;
+        }
+    }
+
+    return idleCounter;
+}

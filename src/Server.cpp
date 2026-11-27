@@ -121,58 +121,66 @@ bool Server::step()
     // for each waiting reauest
     for (auto requestIndex : order)
     {
-
-        int theGPUIndex = -1;
-        auto theprefix = PrefixMatch{0, std::vector<std::size_t>()};
+        Request &currReq = *waitingRequests[requestIndex];
+        int chosenGPUIndex = -1;
+        auto maxLengthPrefix = PrefixMatch{0, std::vector<std::size_t>()};
 
         // finds the best gpu
         for (std::size_t gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
         {
             auto gpu = &gpus[gpuIndex];
-            // finds if gpu has enought slots
-            if (gpu->getBlocksForMemory(waitingRequests[requestIndex]->getNeededMemory(*gpu)) > gpu->availableSlots())
+
+        // finds if gpu has enought slots
+        std:
+            size_t neededBlocks = gpu->getBlocksForMemory(currReq.getNeededMemory(*gpu)) + gpu->countIdles(maxLengthPrefix);
+            if (neededBlocks > gpu->availableSlots())
             {
                 continue;
             }
-            // if this the first gpu that fits the requst take him and continue
-            if (theGPUIndex == -1)
+
+            // if this the first gpu that fits the request take him and continue
+            if (chosenGPUIndex == -1)
             {
-                theGPUIndex = gpuIndex;
-                theprefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
-                                                         waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
+                chosenGPUIndex = gpuIndex;
+                maxLengthPrefix = gpu->findLongestCachedPrefix(currReq.getModel().getId(),
+                                                               currReq.getModel().getEmbeddingSize(), currReq.getCacheableTokens());
 
                 continue;
             }
 
-            auto prefix = gpu->findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
-                                                       waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
-            // if the new prefix batter take it
-            if (prefix.matchedTokens > theprefix.matchedTokens)
+            auto prefix = gpu->findLongestCachedPrefix(currReq.getModel().getId(),
+                                                       currReq.getModel().getEmbeddingSize(), currReq.getCacheableTokens());
+            // check if the current GPU's longest prefix is longer
+            if (prefix.matchedTokens > maxLengthPrefix.matchedTokens)
             {
-                theprefix = prefix;
-                theGPUIndex = gpuIndex;
+                maxLengthPrefix = prefix;
+                chosenGPUIndex = gpuIndex;
             }
-            else if (prefix.matchedTokens == theprefix.matchedTokens)
+            else if (prefix.matchedTokens == maxLengthPrefix.matchedTokens)
             {
-                if (gpu->availableSlots() > gpus[theGPUIndex].availableSlots())
+                // check if in new GPU need fewer new blocks
+                std::size_t chosenGPUNeededBlocks = gpus[chosenGPUIndex].getBlocksForMemory(currReq.getNeededMemory(gpus[chosenGPUIndex])) + gpus[chosenGPUIndex].countIdles(maxLengthPrefix);
+                if (neededBlocks < chosenGPUNeededBlocks)
                 {
-                    theprefix = prefix;
-                    theGPUIndex = gpuIndex;
+                    maxLengthPrefix = prefix;
+                    chosenGPUIndex = gpuIndex;
                 }
-                else if (gpu->availableSlots() == gpus[theGPUIndex].availableSlots())
+                // check for lower index
+                else if (gpu->availableSlots() == gpus[chosenGPUIndex].availableSlots())
                 {
-                    if (gpuIndex < static_cast<std::size_t>(theGPUIndex))
+
+                    if (gpuIndex < static_cast<std::size_t>(chosenGPUIndex))
                     {
-                        theprefix = prefix;
-                        theGPUIndex = gpuIndex;
+                        maxLengthPrefix = prefix;
+                        chosenGPUIndex = gpuIndex;
                     }
                 }
             }
         }
-        // if no fit gpu for the requst delete
-        if (theGPUIndex == -1)
+        // if request can't be processed by any GPU, reject it
+        if (chosenGPUIndex == -1)
         {
-            std::cout << "rejected " << waitingRequests[requestIndex]->getId()
+            std::cout << "rejected " << currReq.getId()
                       << " cycle=" << currentCycle << std::endl;
             delete waitingRequests[requestIndex];
             waitingRequests.erase(waitingRequests.begin() + requestIndex);
@@ -180,20 +188,21 @@ bool Server::step()
         else
         {
             // if there is gpu with a better frifix for the requst take this prefix
-            waitingRequests[requestIndex]->setChoosenGPU(theGPUIndex);
+            currReq.setChoosenGPU(chosenGPUIndex);
             for (std::size_t gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
+
             {
-                if (gpus[gpuIndex].findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
-                                                           waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens())
-                        .matchedTokens > theprefix.matchedTokens)
+                if (gpus[gpuIndex].findLongestCachedPrefix(currReq.getModel().getId(),
+                                                           currReq.getModel().getEmbeddingSize(), currReq.getCacheableTokens())
+                        .matchedTokens > maxLengthPrefix.matchedTokens)
                 {
-                    theprefix = gpus[gpuIndex].findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
-                                                                       waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens());
-                    gpus[theGPUIndex].copyMemoryFromOtherGPU(gpus[gpuIndex], theprefix.blockIds);
+                    maxLengthPrefix = gpus[gpuIndex].findLongestCachedPrefix(currReq.getModel().getId(),
+                                                                             currReq.getModel().getEmbeddingSize(), currReq.getCacheableTokens());
+                    gpus[chosenGPUIndex].copyMemoryFromOtherGPU(gpus[gpuIndex], maxLengthPrefix.blockIds);
                 }
             }
-            // move the request to active
-            waitingRequests[requestIndex]->reserveMemory(gpus[theGPUIndex]);
+            // move the request to active requests
+            currReq.reserveMemory(gpus[chosenGPUIndex]);
             activeRequests.push_back(waitingRequests[requestIndex]);
             waitingRequests.erase(waitingRequests.begin() + requestIndex);
         }

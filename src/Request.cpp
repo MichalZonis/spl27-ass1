@@ -56,22 +56,23 @@ void GenerativeRequest::act(GPU &gpu)
         reservedBlocks--;
     }
 
-    // TODO: currently doesnt process output tokens
     if (processedTokens < tokens.size())
     {
-        model.generateTokenEmbedding(tokens, gpu, slot, t * model.getEmbeddingSize());
         prefixTokens.push_back(tokens[processedTokens]);
     }
     else
     {
-        model.generateTokenEmbedding(outputTokens, gpu, slot, t * model.getEmbeddingSize());
         prefixTokens.push_back(outputTokens[processedTokens - tokens.size()]);
     }
+
+    model.generateTokenEmbedding(prefixTokens, gpu, slot, t * model.getEmbeddingSize());
     processedTokens++;
 
     t = processedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
     if (t == 0)
+    {
         gpu.assignPrefixToBlock(slot, prefixTokens, model.getId());
+    }
 }
 void EmbeddingRequest::act(GPU &gpu)
 {
