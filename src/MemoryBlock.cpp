@@ -1,19 +1,16 @@
 #include "MemoryBlock.h"
 
-MemoryBlock::MemoryBlock(std::size_t size) : size(size), refCount(0)
+MemoryBlock::MemoryBlock(std::size_t size) : size(size), refCount(0), data(new int[size]())
 {
-    data = new int[size];
 }
 
-MemoryBlock::MemoryBlock(const MemoryBlock &other) : size(other.size), refCount(0)
+MemoryBlock::MemoryBlock(const MemoryBlock &other) : size(other.size), refCount(0), data(new int[size]())
 {
-    data = new int[size];
     std::copy(other.data, other.data + size, data);
 }
 
-MemoryBlock::MemoryBlock(MemoryBlock &&other) : size(other.size), refCount(0)
+MemoryBlock::MemoryBlock(MemoryBlock &&other) : size(other.size), refCount(0), data(other.data)
 {
-    data = other.data;
 }
 
 MemoryBlock &MemoryBlock::operator=(const MemoryBlock &other)
@@ -27,7 +24,7 @@ MemoryBlock &MemoryBlock::operator=(const MemoryBlock &other)
     data = nullptr;
     refCount = 0;
     size = other.size;
-    data = new int[size];
+    data = new int[size]();
     std::copy(other.data, other.data + size, data);
     return *this;
 }

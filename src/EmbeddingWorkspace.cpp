@@ -16,3 +16,12 @@ MemoryBlock *EmbeddingWorkspace::clone() const
 {
     return new EmbeddingWorkspace(*this);
 }
+
+EmbeddingWorkspace &EmbeddingWorkspace::operator=(const EmbeddingWorkspace &other)
+{
+    if (this != &other)
+    {
+        MemoryBlock::operator=(other);
+    }
+    return *this;
+}

@@ -18,7 +18,11 @@ MemoryBlock *KVBlock::clone() const
 
 KVBlock &KVBlock::operator=(const KVBlock &other)
 {
-    
+    if (this != &other)
+    {
+        MemoryBlock::operator=(other);
+    }
+    return *this;
 }
 
 KVBlock::~KVBlock() {}
