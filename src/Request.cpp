@@ -4,7 +4,7 @@
 
 Request::Request(int id, const Model &model, int admissionCycle, std::string prompt)
     : id(id), model(model), admissionCycle(admissionCycle), tokens(model.tokenizer(prompt)),
-    memoryBlocks(std::vector<std::size_t>())  ,reservedBlocks(0), theChoosenGPU(-1), processedTokens(0)
+      memoryBlocks(std::vector<std::size_t>()), reservedBlocks(0), theChoosenGPU(-1), processedTokens(0)
 {
 }
 GenerativeRequest::GenerativeRequest(int id, const Model &model, int admissionCycle, std::string prompt, std::string scriptedOutput,
@@ -78,7 +78,7 @@ void EmbeddingRequest::act(GPU &gpu)
 {
     if (finished())
         return;
-        
+
     std::size_t slot;
     if (memoryBlocks.empty())
     {
@@ -86,41 +86,58 @@ void EmbeddingRequest::act(GPU &gpu)
         gpu.acquire(slot);
         memoryBlocks.push_back(slot);
         reservedBlocks--;
-        if(reservedBlocks!=0){
-             slot = gpu.allocateBlock(*this);
-             gpu.acquire(slot);
-             memoryBlocks.push_back(slot);
-             reservedBlocks--;
+        if (reservedBlocks != 0)
+        {
+            slot = gpu.allocateBlock(*this);
+            gpu.acquire(slot);
+            memoryBlocks.push_back(slot);
+            reservedBlocks--;
         }
     }
     std::vector<std::string> theActiveToken;
     theActiveToken.push_back(tokens[processedTokens]);
     model.generateTokenEmbedding(tokens, gpu, memoryBlocks[0], 0);
     std::size_t runningSumSlot;
-        std::size_t runningSumOffset ;
-    if(memoryBlocks.size()==2){
-         runningSumSlot=memoryBlocks[1];
-         runningSumOffset =0;
-    }
-    else{
-         runningSumSlot=memoryBlocks[0];
-         runningSumOffset =model.getEmbeddingSize();
-    }
-    for(std::size_t i=0;i<model.getEmbeddingSize();i++)
+    std::size_t runningSumOffset;
+    if (memoryBlocks.size() == 2)
     {
-        gpu.writeToBlock(runningSumSlot,runningSumOffset+i,gpu.readFromBlock(runningSumSlot,runningSumOffset+i)+gpu.readFromBlock(memoryBlocks[0],i));
+        runningSumSlot = memoryBlocks[1];
+        runningSumOffset = 0;
+    }
+    else
+    {
+        runningSumSlot = memoryBlocks[0];
+        runningSumOffset = model.getEmbeddingSize();
+    }
+    for (std::size_t i = 0; i < model.getEmbeddingSize(); i++)
+    {
+        gpu.writeToBlock(runningSumSlot, runningSumOffset + i, gpu.readFromBlock(runningSumSlot, runningSumOffset + i) + gpu.readFromBlock(memoryBlocks[0], i));
     }
     processedTokens++;
-    output="[";
-    for(std::size_t i=0;i<model.getEmbeddingSize();i++){
-        output+=gpu.readFromBlock(runningSumSlot,runningSumOffset+i);
-        if(i<<model.getEmbeddingSize()-1)
-            output+=", ";
+    output = "[";
+    for (std::size_t i = 0; i < model.getEmbeddingSize(); i++)
+    {
+        output += gpu.readFromBlock(runningSumSlot, runningSumOffset + i);
+        if (i << model.getEmbeddingSize() - 1)
+            output += ", ";
     }
-    output+="]";
+    output += "]";
 }
 void GenerativeRequest::reserveMemory(GPU &gpu)
 {
+    PrefixMatch pm = gpu.findLongestCachedPrefix(model.getId(), model.getEmbeddingSize(), getCacheableTokens());
+    for (std::size_t blockId : pm.blockIds)
+    {
+        gpu.acquire(blockId);
+        memoryBlocks.push_back(blockId);
+    }
+
+    for (std::size_t i = 0; i < pm.matchedTokens; ++i)
+    {
+        prefixTokens.push_back(tokens[i]);
+    }
+    processedTokens = pm.matchedTokens;
+
     std::size_t neededBlocks = gpu.getBlocksForMemory(getNeededMemory(gpu));
     gpu.reserve(neededBlocks, *this);
     reservedBlocks = neededBlocks;
@@ -131,6 +148,7 @@ void EmbeddingRequest::reserveMemory(GPU &gpu)
     gpu.reserve(neededBlocks, *this);
     reservedBlocks = neededBlocks;
 }
+
 void Request::deallocateMemory(GPU &gpu)
 {
     gpu.unreserve(getNeedToUnreserve(), *this);
@@ -204,7 +222,7 @@ Request *EmbeddingRequest::clone(const Model &model) const
     newRequest->tokens = tokens;
     newRequest->memoryBlocks = memoryBlocks;
     newRequest->reservedBlocks = reservedBlocks;
-    
+
     return newRequest;
 }
 

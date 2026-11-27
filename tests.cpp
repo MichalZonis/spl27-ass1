@@ -139,7 +139,123 @@ public:
 };
 
 // ============================================================================
-// 1. Model Tests
+// 1. MemoryBlock, KVBlock, EmbeddingWorkspace & Rule of 5 Tests (Bottom Layer)
+// ============================================================================
+void testMemoryBlocksRuleOf5()
+{
+    std::cout << "Running testMemoryBlocksRuleOf5...\n";
+
+    // --- KVBlock basics & refCount ---
+    KVBlock kv(4);
+    for (std::size_t i = 0; i < 4; ++i)
+    {
+        ASSERT_EQ(kv.readFromBlock(i), 0);
+    }
+    kv.writeToBlock(0, 11);
+    kv.writeToBlock(2, 42);
+    ASSERT_EQ(kv.readFromBlock(2), 42);
+
+    kv.acquire();
+    kv.acquire();
+    kv.release(); // refCount 2 -> 1
+    ASSERT_EQ(kv.release(), IdleAction::KeepCached); // refCount 1 -> 0
+
+    // --- KVBlock Rule of 5 ---
+    // 1. Copy constructor (deep copies data & resets refCount to 0)
+    kv.acquire();
+    KVBlock kvCopy(kv);
+    ASSERT_EQ(kvCopy.readFromBlock(0), 11);
+    ASSERT_EQ(kvCopy.readFromBlock(2), 42);
+    kvCopy.writeToBlock(2, 99);
+    ASSERT_EQ(kv.readFromBlock(2), 42); // Original untouched
+
+    // 2. Copy assignment (including differing sizes & self-assignment safety)
+    KVBlock kvAssigned(2);
+    kvAssigned = kv;
+    ASSERT_EQ(kvAssigned.readFromBlock(0), 11);
+    ASSERT_EQ(kvAssigned.readFromBlock(2), 42);
+    kvAssigned.writeToBlock(2, 77);
+    ASSERT_EQ(kv.readFromBlock(2), 42);
+    KVBlock &kvSelfRef = kvAssigned;
+    kvAssigned = kvSelfRef;
+    ASSERT_EQ(kvAssigned.readFromBlock(2), 77);
+
+    // 3. Move constructor (moved-from remains safe to destroy)
+    KVBlock kvMoved(std::move(kvCopy));
+    ASSERT_EQ(kvMoved.readFromBlock(2), 99);
+
+    // 4. Move assignment (replaces existing buffer cleanly)
+    KVBlock kvMoveAssigned(2);
+    kvMoveAssigned.writeToBlock(0, -5);
+    kvMoveAssigned = std::move(kvMoved);
+    ASSERT_EQ(kvMoveAssigned.readFromBlock(2), 99);
+
+    // 5. Polymorphic clone() & virtual destructor via MemoryBlock*
+    MemoryBlock *kvBasePtr = &kv;
+    MemoryBlock *clonedKV = kvBasePtr->clone();
+    ASSERT_EQ(clonedKV->readFromBlock(2), 42);
+    ASSERT_EQ(clonedKV->onLastRelease(), IdleAction::KeepCached);
+    clonedKV->writeToBlock(2, -1);
+    ASSERT_EQ(kv.readFromBlock(2), 42);
+    delete clonedKV;
+
+    kv.release();
+
+    // --- EmbeddingWorkspace basics & Rule of 5 ---
+    EmbeddingWorkspace ew(4);
+    for (std::size_t i = 0; i < 4; ++i)
+    {
+        ASSERT_EQ(ew.readFromBlock(i), 0);
+    }
+    ew.writeToBlock(1, 55);
+    ew.writeToBlock(3, -12);
+    ew.acquire();
+    ASSERT_EQ(ew.release(), IdleAction::Destroy);
+
+    // 1. Copy constructor
+    ew.acquire();
+    EmbeddingWorkspace ewCopy(ew);
+    ASSERT_EQ(ewCopy.readFromBlock(1), 55);
+    ASSERT_EQ(ewCopy.readFromBlock(3), -12);
+    ewCopy.writeToBlock(1, 88);
+    ASSERT_EQ(ew.readFromBlock(1), 55);
+
+    // 2. Copy assignment & self-assignment
+    EmbeddingWorkspace ewAssigned(2);
+    ewAssigned = ew;
+    ASSERT_EQ(ewAssigned.readFromBlock(1), 55);
+    ASSERT_EQ(ewAssigned.readFromBlock(3), -12);
+    ewAssigned.writeToBlock(1, 66);
+    ASSERT_EQ(ew.readFromBlock(1), 55);
+    EmbeddingWorkspace &ewSelfRef = ewAssigned;
+    ewAssigned = ewSelfRef;
+    ASSERT_EQ(ewAssigned.readFromBlock(1), 66);
+
+    // 3. Move constructor
+    EmbeddingWorkspace ewMoved(std::move(ewCopy));
+    ASSERT_EQ(ewMoved.readFromBlock(1), 88);
+
+    // 4. Move assignment
+    EmbeddingWorkspace ewMoveAssigned(2);
+    ewMoveAssigned.writeToBlock(0, 123);
+    ewMoveAssigned = std::move(ewMoved);
+    ASSERT_EQ(ewMoveAssigned.readFromBlock(1), 88);
+
+    // 5. Polymorphic clone() & virtual destructor via MemoryBlock*
+    MemoryBlock *ewBasePtr = &ew;
+    MemoryBlock *clonedEW = ewBasePtr->clone();
+    ASSERT_EQ(clonedEW->readFromBlock(1), 55);
+    ASSERT_EQ(clonedEW->onLastRelease(), IdleAction::Destroy);
+    clonedEW->writeToBlock(1, -9);
+    ASSERT_EQ(ew.readFromBlock(1), 55);
+    delete clonedEW;
+
+    ew.release();
+    std::cout << "  [DONE] testMemoryBlocksRuleOf5\n";
+}
+
+// ============================================================================
+// 2. Model Tests
 // ============================================================================
 void testModel()
 {
@@ -177,75 +293,6 @@ void testModel()
     gpu.release(s0);
     gpu.release(s1);
     std::cout << "  [DONE] testModel\n";
-}
-
-// ============================================================================
-// 2. MemoryBlock, KVBlock, EmbeddingWorkspace & Rule of 5 Tests
-// ============================================================================
-void testMemoryBlocks()
-{
-    std::cout << "Running testMemoryBlocks...\n";
-
-    // Zero initialization & read/write
-    KVBlock kv(4);
-    for (std::size_t i = 0; i < 4; ++i)
-    {
-        ASSERT_EQ(kv.readFromBlock(i), 0);
-    }
-    kv.writeToBlock(2, 42);
-    ASSERT_EQ(kv.readFromBlock(2), 42);
-
-    // acquire / release / onLastRelease
-    kv.acquire();
-    kv.acquire();
-    // First release: refCount 2 -> 1 (not last release)
-    kv.release();
-    // Second release: refCount 1 -> 0 -> KeepCached
-    ASSERT_EQ(kv.release(), IdleAction::KeepCached);
-
-    EmbeddingWorkspace ew(4);
-    ew.acquire();
-    ASSERT_EQ(ew.release(), IdleAction::Destroy);
-
-    // Deep copy constructor (must reset refCount to 0 and own separate array)
-    kv.acquire();
-    KVBlock kvCopy(kv);
-    ASSERT_EQ(kvCopy.readFromBlock(2), 42);
-    kvCopy.writeToBlock(2, 99);
-    ASSERT_EQ(kv.readFromBlock(2), 42); // Original untouched
-
-    // Copy assignment & self-assignment
-    KVBlock kvAssigned(2);
-    kvAssigned = kv;
-    ASSERT_EQ(kvAssigned.readFromBlock(2), 42);
-    kvAssigned.writeToBlock(2, 77);
-    ASSERT_EQ(kv.readFromBlock(2), 42);
-    kvAssigned = kvAssigned; // Self-assignment safety
-    ASSERT_EQ(kvAssigned.readFromBlock(2), 77);
-
-    // Polymorphic clone() preserves concrete type and deep-copies data
-    MemoryBlock *basePtr = &kv;
-    MemoryBlock *clonedKV = basePtr->clone();
-    ASSERT_EQ(clonedKV->readFromBlock(2), 42);
-    ASSERT_EQ(clonedKV->onLastRelease(), IdleAction::KeepCached);
-    clonedKV->writeToBlock(2, -1);
-    ASSERT_EQ(kv.readFromBlock(2), 42);
-    delete clonedKV; // Tests virtual destructor
-
-    MemoryBlock *clonedEW = ew.clone();
-    ASSERT_EQ(clonedEW->onLastRelease(), IdleAction::Destroy);
-    delete clonedEW;
-
-    // Move constructor & move assignment (moved-from must be safe to destroy)
-    KVBlock kvMoved(std::move(kvCopy));
-    ASSERT_EQ(kvMoved.readFromBlock(2), 99);
-
-    KVBlock kvMoveAssigned(2);
-    kvMoveAssigned = std::move(kvMoved);
-    ASSERT_EQ(kvMoveAssigned.readFromBlock(2), 99);
-
-    kv.release();
-    std::cout << "  [DONE] testMemoryBlocks\n";
 }
 
 // ============================================================================
@@ -328,7 +375,7 @@ void testGPU()
     ASSERT_EQ(gpu2.availableSlots(), static_cast<std::size_t>(3));
 
     // Eviction order: fill slot 2 first, then next allocation evicts lowest idle slot (0)
-    EmbeddingRequest e1(3, llama, 0, "hi", 0);
+    EmbeddingRequest e1(3, llama, 0, "hi");
     gpu.reserve(2, e1);
     std::size_t es0 = gpu.allocateBlock(e1);
     ASSERT_EQ(es0, static_cast<std::size_t>(2)); // empty slot first!
@@ -341,17 +388,41 @@ void testGPU()
     PrefixMatch pmBroken = gpu.findLongestCachedPrefix("llama", 2, {"a", "b", "c", "d"});
     ASSERT_EQ(pmBroken.matchedTokens, static_cast<std::size_t>(0));
 
-    // GPU Rule of 5: copy preserves active blocks, refCounts, and cached prefixes
+    // --- GPU Rule of 5 ---
+    // 1. Copy constructor preserves active blocks, refCounts, and cached prefixes
     GPU gpuCopy(gpu);
     ASSERT_EQ(gpuCopy.availableSlots(), gpu.availableSlots());
+
+    // 2. Copy assignment & self-assignment deep-copy blocks independently
+    GPU gpuAssigned(1, 2);
+    gpuAssigned = gpu;
+    ASSERT_EQ(gpuAssigned.availableSlots(), gpu.availableSlots());
+    GPU &gpuSelfRef = gpuAssigned;
+    gpuAssigned = gpuSelfRef;
+    ASSERT_EQ(gpuAssigned.availableSlots(), gpu.availableSlots());
+
+    gpuAssigned.writeToBlock(es0, 0, 999);
+    ASSERT_EQ(gpu.readFromBlock(es0, 0), 0);
+
+    // Releasing on original must not affect copy or copy-assigned GPU
     gpu.release(es0);
     gpu.release(es1);
-    // Releasing on original must not affect copy
     ASSERT_EQ(gpuCopy.availableSlots(), static_cast<std::size_t>(1));
+    ASSERT_EQ(gpuAssigned.availableSlots(), static_cast<std::size_t>(1));
 
-    // Move GPU
+    // 3. Move constructor
     GPU gpuMoved(std::move(gpuCopy));
     ASSERT_EQ(gpuMoved.availableSlots(), static_cast<std::size_t>(1));
+
+    // 4. Move assignment into an already-populated GPU
+    GPU gpuMoveAssigned(2, 4);
+    gpuMoveAssigned.copyMemoryFromOtherGPU(gpu2, {s0, s1});
+    gpuMoveAssigned = std::move(gpuAssigned);
+    ASSERT_EQ(gpuMoveAssigned.availableSlots(), static_cast<std::size_t>(1));
+    ASSERT_EQ(gpuMoveAssigned.readFromBlock(es0, 0), 999);
+    gpuMoveAssigned.release(es0);
+    gpuMoveAssigned.release(es1);
+    ASSERT_EQ(gpuMoveAssigned.availableSlots(), static_cast<std::size_t>(3));
 
     std::cout << "  [DONE] testGPU\n";
 }
@@ -404,7 +475,7 @@ void testRequests()
     // Needed: 2 * (5 - 4 + 1) = 4 ints => 1 new block
     ASSERT_EQ(g2.getNeededMemory(gpu), static_cast<std::size_t>(4));
 
-    // Clone test: points to new model instance
+    // Polymorphic clone() test for GenerativeRequest: points to new model instance
     Model llamaCopy("llama", 2);
     Request *g2Clone = g2.clone(llamaCopy);
     ASSERT_EQ(g2Clone->getId(), 11);
@@ -413,10 +484,17 @@ void testRequests()
 
     // --- EmbeddingRequest ---
     // Needs 2 * embeddingSize = 4 ints => 1 block regardless of prompt length
-    EmbeddingRequest emb(20, e5, 0, "hello world test", 0);
+    EmbeddingRequest emb(20, e5, 0, "hello world test");
     ASSERT_EQ(emb.getMaxNeededMemory(), static_cast<std::size_t>(4));
     ASSERT_EQ(emb.getNeededMemory(gpu), static_cast<std::size_t>(4));
     ASSERT_TRUE(emb.getCacheableTokens().empty());
+
+    // Polymorphic clone() test for EmbeddingRequest
+    Model e5Copy("e5", 2);
+    Request *embClone = emb.clone(e5Copy);
+    ASSERT_EQ(embClone->getId(), 20);
+    ASSERT_TRUE(&embClone->getModel() == &e5Copy);
+    delete embClone;
 
     emb.reserveMemory(gpu);
     ASSERT_EQ(emb.getNeedToUnreserve(), static_cast<std::size_t>(0)); // workspace allocated immediately
@@ -461,7 +539,7 @@ void testSchedulingPolicies()
     gpus.push_back(gpu);
 
     GenerativeRequest r3(3, llama, 0, "a dog", "", 3);            // blocks=5, h=0
-    EmbeddingRequest r4(4, e5, 1, "hi", 0);                       // blocks=2, h=0
+    EmbeddingRequest r4(4, e5, 1, "hi");                          // blocks=2, h=0
     GenerativeRequest r5(5, llama, 2, "the cat ran", "", 1);      // blocks=4, h=2
     GenerativeRequest r6(6, llama, 3, "the cat sat down", "", 4); // blocks=8, h=3
 
@@ -483,10 +561,18 @@ void testSchedulingPolicies()
     std::vector<int> expLongest = {3, 2, 0, 1}; // ids: 6, 5, 3, 4 (tie 3 vs 4 broken by id)
     ASSERT_EQ(ordLongest, expLongest);
 
-    // clone() test
-    SchedulingPolicy *clonedPolicy = longest.clone();
-    ASSERT_EQ(clonedPolicy->choose(eligible, gpus), expLongest);
-    delete clonedPolicy;
+    // Polymorphic clone() tests for all concrete SchedulingPolicy types
+    SchedulingPolicy *clonedArrival = arrival.clone();
+    ASSERT_EQ(clonedArrival->choose(eligible, gpus), expArrival);
+    delete clonedArrival;
+
+    SchedulingPolicy *clonedShortest = shortest.clone();
+    ASSERT_EQ(clonedShortest->choose(eligible, gpus), expShortest);
+    delete clonedShortest;
+
+    SchedulingPolicy *clonedLongest = longest.clone();
+    ASSERT_EQ(clonedLongest->choose(eligible, gpus), expLongest);
+    delete clonedLongest;
 
     std::cout << "  [DONE] testSchedulingPolicies\n";
 }
@@ -560,7 +646,7 @@ void testServerAndRuleOf5()
         })";
     }
 
-    // --- Mid-run Copy Test ---
+    // --- Mid-run Copy Constructor & Copy Assignment Test ---
     Server original(cfgPath);
 
     std::string prefixOut;
@@ -572,10 +658,20 @@ void testServerAndRuleOf5()
     }
     ASSERT_CONTAINS(prefixOut, "rejected 5 cycle=0");
 
-    // Copy server right in the middle of execution
+    // 1. Copy constructor right in the middle of execution
     Server copied(original);
 
-    std::string origRest, copyRest;
+    // 2. Copy assignment & self-assignment onto an already-initialized active Server
+    Server copyAssigned(cfgPath);
+    {
+        CoutCapture cap;
+        ASSERT_TRUE(copyAssigned.step());
+    }
+    copyAssigned = original;
+    Server &selfRef = copyAssigned;
+    copyAssigned = selfRef;
+
+    std::string origRest, copyRest, copyAssignedRest;
     {
         CoutCapture cap;
         original.serve();
@@ -586,9 +682,15 @@ void testServerAndRuleOf5()
         copied.serve();
         copyRest = cap.str();
     }
+    {
+        CoutCapture cap;
+        copyAssigned.serve();
+        copyAssignedRest = cap.str();
+    }
 
-    // Both must produce identical output independently
+    // All three must produce identical output independently
     ASSERT_EQ(origRest, copyRest);
+    ASSERT_EQ(origRest, copyAssignedRest);
     ASSERT_CONTAINS(origRest, "finished 1");
     ASSERT_CONTAINS(origRest, "paris is the"); // truncated to max_output_tokens=3
     ASSERT_CONTAINS(origRest, "finished 2");
@@ -598,9 +700,13 @@ void testServerAndRuleOf5()
     ASSERT_CONTAINS(origRest, "rome");
     ASSERT_CONTAINS(origRest, "summary:");
 
-    // --- Move Semantics Test ---
+    // --- Mid-run Move Constructor & Move Assignment Test ---
     Server src(cfgPath);
-    ASSERT_TRUE(src.step());
+    {
+        CoutCapture cap;
+        ASSERT_TRUE(src.step());
+    }
+    // 3. Move constructor
     Server dst(std::move(src));
 
     std::string movedFromOut;
@@ -611,10 +717,29 @@ void testServerAndRuleOf5()
     }
     ASSERT_EQ(movedFromOut, "summary: cycles=0 cache_hits=0 evictions=0\n");
 
+    // 4. Move assignment into a server that already holds active requests and GPU allocations
+    Server moveTarget(cfgPath);
+    {
+        CoutCapture cap;
+        ASSERT_TRUE(moveTarget.step());
+        ASSERT_TRUE(moveTarget.step());
+    }
+    moveTarget = std::move(dst);
+
+    std::string dstAfterMoveOut;
     {
         CoutCapture cap;
         dst.serve();
-        ASSERT_CONTAINS(cap.str(), "summary:");
+        dstAfterMoveOut = cap.str();
+    }
+    ASSERT_EQ(dstAfterMoveOut, "summary: cycles=0 cache_hits=0 evictions=0\n");
+
+    {
+        CoutCapture cap;
+        moveTarget.serve();
+        std::string targetOut = cap.str();
+        ASSERT_CONTAINS(targetOut, "finished 1");
+        ASSERT_CONTAINS(targetOut, "summary:");
     }
 
     std::remove(cfgPath.c_str());
@@ -623,8 +748,8 @@ void testServerAndRuleOf5()
 
 int main()
 {
+    testMemoryBlocksRuleOf5();
     testModel();
-    testMemoryBlocks();
     testGPU();
     testRequests();
     testSchedulingPolicies();

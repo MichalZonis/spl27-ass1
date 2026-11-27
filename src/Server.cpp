@@ -124,16 +124,19 @@ bool Server::step()
         Request &currReq = *waitingRequests[requestIndex];
         int chosenGPUIndex = -1;
         auto maxLengthPrefix = PrefixMatch{0, std::vector<std::size_t>()};
+        std::size_t neededBlocksInChosenGPU = 0;
 
         // finds the best gpu
         for (std::size_t gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
         {
-            auto gpu = &gpus[gpuIndex];
+            const GPU &gpu = gpus[gpuIndex];
 
-        // finds if gpu has enought slots
-        std:
-            size_t neededBlocks = gpu->getBlocksForMemory(currReq.getNeededMemory(*gpu)) + gpu->countIdles(maxLengthPrefix);
-            if (neededBlocks > gpu->availableSlots())
+            auto prefix = gpu.findLongestCachedPrefix(currReq.getModel().getId(),
+                                                      currReq.getModel().getEmbeddingSize(),
+                                                      currReq.getCacheableTokens());
+            // finds if gpu has enought slots
+            std::size_t neededBlocks = gpu.getBlocksForMemory(currReq.getNeededMemory(gpu)) + gpu.countIdles(prefix);
+            if (neededBlocks > gpu.availableSlots())
             {
                 continue;
             }
@@ -141,42 +144,32 @@ bool Server::step()
             // if this the first gpu that fits the request take him and continue
             if (chosenGPUIndex == -1)
             {
+                neededBlocksInChosenGPU = neededBlocks;
                 chosenGPUIndex = gpuIndex;
-                maxLengthPrefix = gpu->findLongestCachedPrefix(currReq.getModel().getId(),
-                                                               currReq.getModel().getEmbeddingSize(), currReq.getCacheableTokens());
+                maxLengthPrefix = prefix;
 
                 continue;
             }
 
-            auto prefix = gpu->findLongestCachedPrefix(currReq.getModel().getId(),
-                                                       currReq.getModel().getEmbeddingSize(), currReq.getCacheableTokens());
             // check if the current GPU's longest prefix is longer
             if (prefix.matchedTokens > maxLengthPrefix.matchedTokens)
             {
                 maxLengthPrefix = prefix;
                 chosenGPUIndex = gpuIndex;
+                neededBlocksInChosenGPU = neededBlocks;
             }
             else if (prefix.matchedTokens == maxLengthPrefix.matchedTokens)
             {
                 // check if in new GPU need fewer new blocks
-                std::size_t chosenGPUNeededBlocks = gpus[chosenGPUIndex].getBlocksForMemory(currReq.getNeededMemory(gpus[chosenGPUIndex])) + gpus[chosenGPUIndex].countIdles(maxLengthPrefix);
-                if (neededBlocks < chosenGPUNeededBlocks)
+                if (neededBlocks < neededBlocksInChosenGPU)
                 {
+                    neededBlocksInChosenGPU = neededBlocks;
                     maxLengthPrefix = prefix;
                     chosenGPUIndex = gpuIndex;
                 }
-                // check for lower index
-                else if (gpu->availableSlots() == gpus[chosenGPUIndex].availableSlots())
-                {
-
-                    if (gpuIndex < static_cast<std::size_t>(chosenGPUIndex))
-                    {
-                        maxLengthPrefix = prefix;
-                        chosenGPUIndex = gpuIndex;
-                    }
-                }
             }
         }
+
         // if request can't be processed by any GPU, reject it
         if (chosenGPUIndex == -1)
         {
@@ -187,7 +180,7 @@ bool Server::step()
         }
         else
         {
-            // if there is gpu with a better frifix for the requst take this prefix
+            // if there is gpu with a better prefix for the requst copy this prefix
             currReq.setChoosenGPU(chosenGPUIndex);
             for (std::size_t gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
 
@@ -197,7 +190,8 @@ bool Server::step()
                         .matchedTokens > maxLengthPrefix.matchedTokens)
                 {
                     maxLengthPrefix = gpus[gpuIndex].findLongestCachedPrefix(currReq.getModel().getId(),
-                                                                             currReq.getModel().getEmbeddingSize(), currReq.getCacheableTokens());
+                                                                             currReq.getModel().getEmbeddingSize(),
+                                                                              currReq.getCacheableTokens());
                     gpus[chosenGPUIndex].copyMemoryFromOtherGPU(gpus[gpuIndex], maxLengthPrefix.blockIds);
                 }
             }
@@ -277,7 +271,7 @@ Server::Server(string configPath)
         }
         else if (requestConfig.type == RequestType::TextEmbedder)
         {
-            nonSubmittedRequests.push_back(new EmbeddingRequest(requestConfig.id, *model, requestConfig.admissionCycle, requestConfig.prompt, 0));
+            nonSubmittedRequests.push_back(new EmbeddingRequest(requestConfig.id, *model, requestConfig.admissionCycle, requestConfig.prompt));
         }
     }
 }
