@@ -49,6 +49,7 @@ public:
     GPU &operator=(const GPU &other);
     GPU(const GPU &other);
     GPU(GPU &&other);
+    std::size_t countIdles(PrefixMatch prefix);
 
 private:
     std::size_t blocksNum;

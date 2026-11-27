@@ -130,8 +130,10 @@ bool Server::step()
         {
             auto gpu = &gpus[gpuIndex];
 
-            // finds if gpu has enought slots
-            if (gpu->getBlocksForMemory(currReq.getNeededMemory(*gpu)) > gpu->availableSlots())
+        // finds if gpu has enought slots
+        std:
+            size_t neededBlocks = gpu->getBlocksForMemory(currReq.getNeededMemory(*gpu)) + gpu->countIdles(maxLengthPrefix);
+            if (neededBlocks > gpu->availableSlots())
             {
                 continue;
             }
@@ -156,9 +158,9 @@ bool Server::step()
             }
             else if (prefix.matchedTokens == maxLengthPrefix.matchedTokens)
             {
-                // check if in new GPU need fewer new blocks 
-                //gpu->getBlocksForMemory(currReq.getNeededMemory(*gpu))
-                if (gpu->availableSlots() > gpus[chosenGPUIndex].availableSlots())
+                // check if in new GPU need fewer new blocks
+                std::size_t chosenGPUNeededBlocks = gpus[chosenGPUIndex].getBlocksForMemory(currReq.getNeededMemory(gpus[chosenGPUIndex])) + gpus[chosenGPUIndex].countIdles(maxLengthPrefix);
+                if (neededBlocks < chosenGPUNeededBlocks)
                 {
                     maxLengthPrefix = prefix;
                     chosenGPUIndex = gpuIndex;
@@ -174,7 +176,7 @@ bool Server::step()
                 }
             }
         }
-        // if no fit gpu for the requst delete
+        // if request can't be processed by any GPU, reject it
         if (chosenGPUIndex == -1)
         {
             std::cout << "rejected " << currReq.getId()
@@ -184,7 +186,7 @@ bool Server::step()
         }
         else
         {
-            // if there is gpu with a better frifix for the requst take this prefix
+            // if there is gpu with a better prefix for the requst copy this prefix
             currReq.setChoosenGPU(chosenGPUIndex);
             for (int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
             {
@@ -197,7 +199,7 @@ bool Server::step()
                     gpus[chosenGPUIndex].copyMemoryFromOtherGPU(gpus[gpuIndex], maxLengthPrefix.blockIds);
                 }
             }
-            // move the request to active
+            // move the request to active requests
             currReq.reserveMemory(gpus[chosenGPUIndex]);
             activeRequests.push_back(waitingRequests[requestIndex]);
             waitingRequests.erase(waitingRequests.begin() + requestIndex);
