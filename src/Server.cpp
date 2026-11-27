@@ -205,8 +205,9 @@ bool Server::step()
         if ((*request)->finished())
         {
             (*request)->deallocateMemory(gpus[(*request)->getChoosenGPU()]);
+            std::string output = ((*request)->getOutput() == "") ? "" : " " + (*request)->getOutput();
             std::cout << "finished " << (*request)->getId()
-                      << " cycle=" << currentCycle << " gpu=" << (*request)->getChoosenGPU() << ":" << (*request)->getOutput() << std::endl;
+                      << " cycle=" << currentCycle << " gpu=" << (*request)->getChoosenGPU() << ":" << output << std::endl;
             delete *request;
             request = activeRequests.erase(request);
         }
