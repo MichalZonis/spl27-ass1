@@ -112,7 +112,7 @@ std::size_t EmbeddingRequest::getNeedToUnreserve() const
 }
 std::string GenerativeRequest::getOutput() const
 {
-    return (scriptedOutput == "") ? scriptedOutput : " " + scriptedOutput;
+    return scriptedOutput;
 }
 std::string EmbeddingRequest::getOutput() const
 {
