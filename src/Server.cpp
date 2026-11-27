@@ -169,6 +169,7 @@ bool Server::step()
                 }
             }
         }
+
         // if request can't be processed by any GPU, reject it
         if (chosenGPUIndex == -1)
         {
@@ -179,7 +180,7 @@ bool Server::step()
         }
         else
         {
-            // if there is gpu with a better frifix for the requst take this prefix
+            // if there is gpu with a better prefix for the requst copy this prefix
             currReq.setChoosenGPU(chosenGPUIndex);
             for (std::size_t gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
 
@@ -189,7 +190,8 @@ bool Server::step()
                         .matchedTokens > maxLengthPrefix.matchedTokens)
                 {
                     maxLengthPrefix = gpus[gpuIndex].findLongestCachedPrefix(currReq.getModel().getId(),
-                                                                             currReq.getModel().getEmbeddingSize(), currReq.getCacheableTokens());
+                                                                             currReq.getModel().getEmbeddingSize(),
+                                                                              currReq.getCacheableTokens());
                     gpus[chosenGPUIndex].copyMemoryFromOtherGPU(gpus[gpuIndex], maxLengthPrefix.blockIds);
                 }
             }
