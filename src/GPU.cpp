@@ -445,7 +445,6 @@ std::size_t GPU::getBlockSize() const { return blockSize; }
 
 std::size_t GPU::countIdles(PrefixMatch prefix) const
 {
-   // std::cout <<"" + prefix.blockIds << std::endl;
     std::size_t idleCounter(0);
     for (auto slot : prefix.blockIds)
     {
