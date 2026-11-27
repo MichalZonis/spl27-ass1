@@ -15,8 +15,8 @@ protected:
     std::vector<std::string> tokens;
     std::vector<std::size_t> memoryBlocks;
     std::size_t reservedBlocks;
-    int theChoosenGPU;
-    int processedTokens;
+    std::size_t theChoosenGPU;
+    std::size_t processedTokens;
 public:
     Request(int id, const Model& model, int admissionCycle, std::string prompt);
     virtual std::size_t getNeededMemory(const GPU& gpu) const=0;
@@ -43,6 +43,8 @@ class GenerativeRequest: public Request{
 private:
     std::string scriptedOutput;
     std::size_t maxOutputTokens;
+    std::vector<std::string> outputTokens;
+    std::vector<std::string> prefixTokens;
 public:
     GenerativeRequest(int id, const Model& model, int admissionCycle, std::string prompt, std::string scriptedOutput,
     std::size_t maxOutputTokens);
