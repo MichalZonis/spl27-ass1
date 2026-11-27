@@ -83,7 +83,7 @@ void Server::serve()
 
     int cacheHits = 0;
     int evictions = 0;
-    for (int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
+    for (std::size_t gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
     {
         cacheHits += gpus[gpuIndex].getCacheHits();
         evictions += gpus[gpuIndex].getEvictions();
@@ -126,7 +126,7 @@ bool Server::step()
         auto theprefix = PrefixMatch{0, std::vector<std::size_t>()};
 
         // finds the best gpu
-        for (int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
+        for (std::size_t gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
         {
             auto gpu = &gpus[gpuIndex];
             // finds if gpu has enought slots
@@ -161,7 +161,7 @@ bool Server::step()
                 }
                 else if (gpu->availableSlots() == gpus[theGPUIndex].availableSlots())
                 {
-                    if (gpuIndex < theGPUIndex)
+                    if (gpuIndex < static_cast<std::size_t>(theGPUIndex))
                     {
                         theprefix = prefix;
                         theGPUIndex = gpuIndex;
@@ -181,7 +181,7 @@ bool Server::step()
         {
             // if there is gpu with a better frifix for the requst take this prefix
             waitingRequests[requestIndex]->setChoosenGPU(theGPUIndex);
-            for (int gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
+            for (std::size_t gpuIndex = 0; gpuIndex < gpus.size(); gpuIndex++)
             {
                 if (gpus[gpuIndex].findLongestCachedPrefix(waitingRequests[requestIndex]->getModel().getId(),
                                                            waitingRequests[requestIndex]->getModel().getEmbeddingSize(), waitingRequests[requestIndex]->getCacheableTokens())
