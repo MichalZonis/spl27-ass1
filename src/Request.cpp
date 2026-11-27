@@ -9,7 +9,7 @@ Request::Request(int id, const Model &model, int admissionCycle, std::string pro
 }
 GenerativeRequest::GenerativeRequest(int id, const Model &model, int admissionCycle, std::string prompt, std::string scriptedOutput,
                                      std::size_t maxOutputTokens)
-    : Request(id, model, admissionCycle, prompt), scriptedOutput(scriptedOutput), maxOutputTokens(maxOutputTokens)
+    : Request(id, model, admissionCycle, prompt), scriptedOutput(scriptedOutput), maxOutputTokens(maxOutputTokens), outputTokens(model.tokenizer(scriptedOutput)), prefixTokens(std::vector<std::string>())
 {
 }
 EmbeddingRequest::EmbeddingRequest(int id, const Model &model, int admissionCycle, std::string prompt, int runningSum)
@@ -36,7 +36,7 @@ bool EmbeddingRequest::finished() const
 }
 bool GenerativeRequest::finished() const
 {
-    return processedTokens == tokens.size();
+    return processedTokens == tokens.size() + outputTokens.size();
 }
 void GenerativeRequest::act(GPU &gpu)
 {
@@ -56,12 +56,22 @@ void GenerativeRequest::act(GPU &gpu)
         reservedBlocks--;
     }
 
-    //TODO: currently doesnt process output tokens
-    model.generateTokenEmbedding(tokens, gpu, slot, t * model.getEmbeddingSize());
+    // TODO: currently doesnt process output tokens
+    if (processedTokens < tokens.size())
+    {
+        model.generateTokenEmbedding(tokens, gpu, slot, t * model.getEmbeddingSize());
+        prefixTokens.push_back(tokens[processedTokens]);
+    }
+    else
+    {
+        model.generateTokenEmbedding(outputTokens, gpu, slot, t * model.getEmbeddingSize());
+        prefixTokens.push_back(outputTokens[processedTokens - tokens.size()]);
+    }
     processedTokens++;
+
     t = processedTokens % (gpu.getBlockSize() / model.getEmbeddingSize());
     if (t == 0)
-        gpu.assignPrefixToBlock(slot, tokens, model.getId());
+        gpu.assignPrefixToBlock(slot, prefixTokens, model.getId());
 }
 void EmbeddingRequest::act(GPU &gpu)
 {
