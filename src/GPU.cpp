@@ -217,7 +217,7 @@ PrefixMatch GPU::findLongestCachedPrefix(const std::string &modelId,
                 cachedPrefixes[i]->size() == targetLen)
             {
                 bool blockMatches = true;
-                // Check if the cached prefix matches the corresponding part of the prompt 
+                // Check if the cached prefix matches the corresponding part of the prompt
                 //(and by extension, the already matched prefix)
                 for (std::size_t j = 0; j < targetLen; j++)
                 {
@@ -331,13 +331,20 @@ GPU &GPU::operator=(GPU &&other)
 
     clear();
     blocksNum = other.blocksNum;
+    other.blocksNum = 0;
     blockSize = other.blockSize;
-    cachedModelIds.reserve(blocksNum);
-    cachedModelIds.reserve(blocksNum);
+    other.blockSize = 0;
     evictionCounter = other.evictionCounter;
+    other.evictionCounter = 0;
     activeBlocksCounter = other.activeBlocksCounter;
+    other.activeBlocksCounter = 0;
     reservedBlocksCounter = other.reservedBlocksCounter;
+    other.reservedBlocksCounter = 0;
     cacheHits = other.cacheHits;
+    other.cacheHits = 0;
+    requestsReservations = other.requestsReservations;
+    cachedModelIds.resize(blocksNum);
+    cachedPrefixes.resize(blocksNum);
     for (std::size_t i = 0; i < blocksNum; ++i)
     {
         if (other.memory[i] != nullptr)
@@ -376,8 +383,8 @@ GPU &GPU::operator=(const GPU &other)
     blocksNum = other.blocksNum;
     blockSize = other.blockSize;
     requestsReservations = other.requestsReservations;
-    cachedModelIds.reserve(blocksNum);
-    cachedModelIds.reserve(blocksNum);
+    cachedModelIds.resize(blocksNum);
+    cachedPrefixes.resize(blocksNum);
     evictionCounter = other.evictionCounter;
     activeBlocksCounter = other.activeBlocksCounter;
     reservedBlocksCounter = other.reservedBlocksCounter;
@@ -392,19 +399,12 @@ GPU &GPU::operator=(const GPU &other)
                 memory[i]->acquire();
             }
         }
-        else
-        {
-            memory[i] = nullptr;
-        }
 
         if (other.cachedPrefixes[i] != nullptr)
         {
             cachedPrefixes[i] = new std::vector<std::string>(*other.cachedPrefixes[i]);
         }
-        else
-        {
-            cachedPrefixes[i] = nullptr;
-        }
+    
         cachedModelIds[i] = other.cachedModelIds[i];
     }
 
@@ -439,6 +439,8 @@ void GPU::clear()
         delete memory[i];
         memory[i] = nullptr;
     }
+
+    blocksNum = 0;
 }
 
 std::size_t GPU::getBlockSize() const { return blockSize; }
