@@ -225,6 +225,8 @@ Request *GenerativeRequest::clone(const Model &model) const
     newRequest->reservedBlocks = reservedBlocks;
     newRequest->outputTokens = outputTokens;
     newRequest->prefixTokens = prefixTokens;
+    newRequest->theChoosenGPU = theChoosenGPU;
+newRequest->processedTokens = processedTokens;
     return newRequest;
 }
 Request *EmbeddingRequest::clone(const Model &model) const
@@ -233,6 +235,8 @@ Request *EmbeddingRequest::clone(const Model &model) const
     newRequest->tokens = tokens;
     newRequest->memoryBlocks = memoryBlocks;
     newRequest->reservedBlocks = reservedBlocks;
+    newRequest->output = output;
+    newRequest->theChoosenGPU = theChoosenGPU;
 
     return newRequest;
 }

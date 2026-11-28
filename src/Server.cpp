@@ -238,7 +238,8 @@ Server::Server(string configPath)
     gpus.reserve(config.gpus.size());
     for (const auto &gpuConfig : config.gpus)
     {
-        gpus.emplace_back(gpuConfig.memoryBytes, config.blockSize);
+      std::size_t blocksNum = gpuConfig.memoryBytes / config.blockSize + (gpuConfig.memoryBytes % config.blockSize != 0);
+        gpus.emplace_back(blocksNum, config.blockSize); 
     }
     models.reserve(config.models.size());
     for (const auto &modelConfig : config.models)
