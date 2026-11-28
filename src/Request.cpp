@@ -78,22 +78,8 @@ void EmbeddingRequest::act(GPU &gpu)
 {
     if (finished())
         return;
-
-    std::size_t slot;
     if (memoryBlocks.empty())
-    {
-        slot = gpu.allocateBlock(*this);
-        gpu.acquire(slot);
-        memoryBlocks.push_back(slot);
-        reservedBlocks--;
-        if (reservedBlocks != 0)
-        {
-            slot = gpu.allocateBlock(*this);
-            gpu.acquire(slot);
-            memoryBlocks.push_back(slot);
-            reservedBlocks--;
-        }
-    }
+        return;
     std::vector<std::string> theActiveToken;
     theActiveToken.push_back(tokens[processedTokens]);
     model.generateTokenEmbedding(theActiveToken, gpu, memoryBlocks[0], 0);
@@ -117,7 +103,7 @@ void EmbeddingRequest::act(GPU &gpu)
     output = "[";
     for (std::size_t i = 0; i < model.getEmbeddingSize(); i++)
     {
-        output += std::to_string( gpu.readFromBlock(runningSumSlot, runningSumOffset + i)/static_cast<int>(processedTokens));
+        output += std::to_string(gpu.readFromBlock(runningSumSlot, runningSumOffset + i) / static_cast<int>(processedTokens));
         if (i < (model.getEmbeddingSize() - 1))
             output += ", ";
     }
@@ -147,6 +133,14 @@ void EmbeddingRequest::reserveMemory(GPU &gpu)
     std::size_t neededBlocks = gpu.getBlocksForMemory(getNeededMemory(gpu));
     gpu.reserve(neededBlocks, *this);
     reservedBlocks = neededBlocks;
+
+    for (std::size_t i = 0; i < neededBlocks; ++i)
+    {
+        std::size_t slot = gpu.allocateBlock(*this);
+        gpu.acquire(slot);
+        memoryBlocks.push_back(slot);
+        reservedBlocks--;
+    }
 }
 
 void Request::deallocateMemory(GPU &gpu)
@@ -171,7 +165,7 @@ std::string GenerativeRequest::getOutput() const
     if (outputTokens.size() > maxOutputTokens)
     {
         std::string result;
-        for (std::size_t i = 0; i <maxOutputTokens; ++i)
+        for (std::size_t i = 0; i < maxOutputTokens; ++i)
         {
             if (i > 0)
                 result += " ";
@@ -226,7 +220,7 @@ Request *GenerativeRequest::clone(const Model &model) const
     newRequest->outputTokens = outputTokens;
     newRequest->prefixTokens = prefixTokens;
     newRequest->theChoosenGPU = theChoosenGPU;
-newRequest->processedTokens = processedTokens;
+    newRequest->processedTokens = processedTokens;
     return newRequest;
 }
 Request *EmbeddingRequest::clone(const Model &model) const
@@ -237,6 +231,7 @@ Request *EmbeddingRequest::clone(const Model &model) const
     newRequest->reservedBlocks = reservedBlocks;
     newRequest->output = output;
     newRequest->theChoosenGPU = theChoosenGPU;
+    newRequest->processedTokens = processedTokens;
 
     return newRequest;
 }
