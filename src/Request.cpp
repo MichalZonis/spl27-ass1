@@ -13,7 +13,7 @@ GenerativeRequest::GenerativeRequest(int id, const Model &model, int admissionCy
 {
 }
 EmbeddingRequest::EmbeddingRequest(int id, const Model &model, int admissionCycle, std::string prompt)
-    : Request(id, model, admissionCycle, prompt)
+    : Request(id, model, admissionCycle, prompt), output(std::string())
 {
 }
 
@@ -36,7 +36,7 @@ bool EmbeddingRequest::finished() const
 }
 bool GenerativeRequest::finished() const
 {
-    return processedTokens == tokens.size() + outputTokens.size();
+    return processedTokens == tokens.size() + outputTokens.size() || processedTokens == tokens.size() + maxOutputTokens;
 }
 void GenerativeRequest::act(GPU &gpu)
 {
@@ -78,25 +78,11 @@ void EmbeddingRequest::act(GPU &gpu)
 {
     if (finished())
         return;
-
-    std::size_t slot;
     if (memoryBlocks.empty())
-    {
-        slot = gpu.allocateBlock(*this);
-        gpu.acquire(slot);
-        memoryBlocks.push_back(slot);
-        reservedBlocks--;
-        if (reservedBlocks != 0)
-        {
-            slot = gpu.allocateBlock(*this);
-            gpu.acquire(slot);
-            memoryBlocks.push_back(slot);
-            reservedBlocks--;
-        }
-    }
+        return;
     std::vector<std::string> theActiveToken;
     theActiveToken.push_back(tokens[processedTokens]);
-    model.generateTokenEmbedding(tokens, gpu, memoryBlocks[0], 0);
+    model.generateTokenEmbedding(theActiveToken, gpu, memoryBlocks[0], 0);
     std::size_t runningSumSlot;
     std::size_t runningSumOffset;
     if (memoryBlocks.size() == 2)
@@ -117,8 +103,8 @@ void EmbeddingRequest::act(GPU &gpu)
     output = "[";
     for (std::size_t i = 0; i < model.getEmbeddingSize(); i++)
     {
-        output += gpu.readFromBlock(runningSumSlot, runningSumOffset + i);
-        if (i << model.getEmbeddingSize() - 1)
+        output += std::to_string(gpu.readFromBlock(runningSumSlot, runningSumOffset + i) / static_cast<int>(processedTokens));
+        if (i < (model.getEmbeddingSize() - 1))
             output += ", ";
     }
     output += "]";
@@ -147,6 +133,14 @@ void EmbeddingRequest::reserveMemory(GPU &gpu)
     std::size_t neededBlocks = gpu.getBlocksForMemory(getNeededMemory(gpu));
     gpu.reserve(neededBlocks, *this);
     reservedBlocks = neededBlocks;
+
+    for (std::size_t i = 0; i < neededBlocks; ++i)
+    {
+        std::size_t slot = gpu.allocateBlock(*this);
+        gpu.acquire(slot);
+        memoryBlocks.push_back(slot);
+        reservedBlocks--;
+    }
 }
 
 void Request::deallocateMemory(GPU &gpu)
@@ -168,6 +162,17 @@ std::size_t EmbeddingRequest::getNeedToUnreserve() const
 }
 std::string GenerativeRequest::getOutput() const
 {
+    if (outputTokens.size() > maxOutputTokens)
+    {
+        std::string result;
+        for (std::size_t i = 0; i < maxOutputTokens; ++i)
+        {
+            if (i > 0)
+                result += " ";
+            result += outputTokens[i];
+        }
+        return result;
+    }
     return scriptedOutput;
 }
 std::string EmbeddingRequest::getOutput() const
@@ -214,6 +219,8 @@ Request *GenerativeRequest::clone(const Model &model) const
     newRequest->reservedBlocks = reservedBlocks;
     newRequest->outputTokens = outputTokens;
     newRequest->prefixTokens = prefixTokens;
+    newRequest->theChoosenGPU = theChoosenGPU;
+    newRequest->processedTokens = processedTokens;
     return newRequest;
 }
 Request *EmbeddingRequest::clone(const Model &model) const
@@ -222,6 +229,9 @@ Request *EmbeddingRequest::clone(const Model &model) const
     newRequest->tokens = tokens;
     newRequest->memoryBlocks = memoryBlocks;
     newRequest->reservedBlocks = reservedBlocks;
+    newRequest->output = output;
+    newRequest->theChoosenGPU = theChoosenGPU;
+    newRequest->processedTokens = processedTokens;
 
     return newRequest;
 }

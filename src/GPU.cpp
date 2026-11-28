@@ -318,7 +318,10 @@ void GPU::acquire(std::size_t slot)
 {
     (*memory[slot]).acquire();
     activeBlocksCounter++;
-    cacheHits++;
+    if (cachedPrefixes[slot] != nullptr)
+    {
+        cacheHits++;
+    }
 }
 
 GPU &GPU::operator=(GPU &&other)
@@ -333,7 +336,7 @@ GPU &GPU::operator=(GPU &&other)
     blocksNum = other.blocksNum;
     other.blocksNum = 0;
     blockSize = other.blockSize;
-    other.blockSize = 0;
+   // other.blockSize = 0;
     evictionCounter = other.evictionCounter;
     other.evictionCounter = 0;
     activeBlocksCounter = other.activeBlocksCounter;
@@ -342,7 +345,13 @@ GPU &GPU::operator=(GPU &&other)
     other.reservedBlocksCounter = 0;
     cacheHits = other.cacheHits;
     other.cacheHits = 0;
-    requestsReservations = other.requestsReservations;
+   // requestsReservations = other.requestsReservations;
+
+    requestsReservations = std::move(other.requestsReservations);
+    other.requestsReservations.clear();
+
+    memory.resize(blocksNum, nullptr);
+
     cachedModelIds.resize(blocksNum);
     cachedPrefixes.resize(blocksNum);
     for (std::size_t i = 0; i < blocksNum; ++i)
@@ -366,7 +375,8 @@ GPU &GPU::operator=(GPU &&other)
         {
             cachedPrefixes[i] = nullptr;
         }
-        cachedModelIds[i] = other.cachedModelIds[i];
+       // cachedModelIds[i] = other.cachedModelIds[i];
+       cachedModelIds[i] = std::move(other.cachedModelIds[i]);
     }
 
     return *this;
@@ -383,8 +393,14 @@ GPU &GPU::operator=(const GPU &other)
     blocksNum = other.blocksNum;
     blockSize = other.blockSize;
     requestsReservations = other.requestsReservations;
+
+    memory.resize(blocksNum, nullptr);
+
     cachedModelIds.resize(blocksNum);
-    cachedPrefixes.resize(blocksNum);
+    //cachedPrefixes.resize(blocksNum);
+
+    cachedPrefixes.resize(blocksNum, nullptr);
+
     evictionCounter = other.evictionCounter;
     activeBlocksCounter = other.activeBlocksCounter;
     reservedBlocksCounter = other.reservedBlocksCounter;
@@ -394,7 +410,7 @@ GPU &GPU::operator=(const GPU &other)
         if (other.memory[i] != nullptr)
         {
             memory[i] = other.memory[i]->clone();
-            for (std::size_t j = 0; j < other.memory[j]->getRefCount(); j++)
+            for (std::size_t j = 0; j < other.memory[i]->getRefCount(); j++)
             {
                 memory[i]->acquire();
             }
@@ -433,13 +449,15 @@ void GPU::clear()
         delete cachedPrefixes[i];
         cachedPrefixes[i] = nullptr;
     }
+    cachedPrefixes.clear();
+    cachedModelIds.clear();
 
     for (std::size_t i = 0; i < memory.size(); ++i)
     {
         delete memory[i];
         memory[i] = nullptr;
     }
-
+    memory.clear();
     blocksNum = 0;
 }
 
