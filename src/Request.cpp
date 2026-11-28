@@ -118,7 +118,7 @@ void EmbeddingRequest::act(GPU &gpu)
     for (std::size_t i = 0; i < model.getEmbeddingSize(); i++)
     {
         output += gpu.readFromBlock(runningSumSlot, runningSumOffset + i);
-        if (i << model.getEmbeddingSize() - 1)
+        if (i << (model.getEmbeddingSize() - 1))
             output += ", ";
     }
     output += "]";
